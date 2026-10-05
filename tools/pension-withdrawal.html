@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>연금 인출 세금 시뮬레이터</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net">
+<link href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.css" rel="stylesheet">
+<style>
+  :root{
+    --paper:#F3F1EC;--card:#FFFFFF;--ink:#1B2A33;--ink-soft:#5A6B72;
+    --line:#E3DFD6;--line-strong:#CFC9BC;
+    --teal:#0E7A6B;--teal-soft:#D6ECE7;--blue:#2D6CB5;--blue-soft:#DCE7F5;
+    --amber:#B07A1E;--amber-soft:#F0E4CC;--clay:#B0473A;--clay-soft:#F2DCD8;
+    --shadow:0 1px 2px rgba(27,42,51,.05),0 8px 24px rgba(27,42,51,.06);
+    font-synthesis:none;
+  }
+  *{box-sizing:border-box}
+  html{-webkit-text-size-adjust:100%}
+  body{margin:0;background:var(--paper);color:var(--ink);
+    font-family:"Pretendard Variable",Pretendard,-apple-system,system-ui,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+    line-height:1.5;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums;}
+  .num{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
+  .wrap{max-width:1120px;margin:0 auto;padding:0 20px 80px}
+  header.top{padding:48px 0 28px;border-bottom:1px solid var(--line)}
+  .eyebrow{font-size:12px;letter-spacing:.18em;text-transform:uppercase;color:var(--teal);font-weight:700;margin:0 0 14px}
+  h1{font-size:clamp(28px,4vw,40px);font-weight:800;letter-spacing:-.02em;margin:0 0 12px;line-height:1.12}
+  .thesis{font-size:16px;color:var(--ink-soft);max-width:62ch;margin:0}
+  section{margin-top:34px}
+  .sec-label{display:flex;align-items:baseline;gap:12px;margin:0 0 16px}
+  .sec-num{font-size:13px;font-weight:700;color:var(--teal);font-variant-numeric:tabular-nums}
+  .sec-label h2{font-size:18px;font-weight:700;letter-spacing:-.01em;margin:0}
+  .sec-label .hint{font-size:13px;color:var(--ink-soft);margin-left:auto;text-align:right}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow)}
+  .grid{display:grid;gap:16px}
+  .base-grid{grid-template-columns:repeat(auto-fit,minmax(186px,1fr));padding:20px}
+  .acct-grid{grid-template-columns:repeat(3,1fr);gap:16px}
+  @media(max-width:760px){.acct-grid{grid-template-columns:1fr}}
+  .field{display:flex;flex-direction:column;gap:7px}
+  .field label{font-size:13px;font-weight:600;color:var(--ink)}
+  .field .desc{font-size:11.5px;color:var(--ink-soft);font-weight:400}
+  .input-row{display:flex;align-items:center;gap:8px}
+  input[type=number]{width:100%;padding:10px 12px;font-size:15px;font-family:inherit;color:var(--ink);
+    background:#FCFBF8;border:1px solid var(--line-strong);border-radius:9px;outline:none;
+    font-variant-numeric:tabular-nums;transition:border-color .15s,box-shadow .15s;}
+  input[type=number]:focus{border-color:var(--teal);box-shadow:0 0 0 3px var(--teal-soft)}
+  .unit{font-size:13px;color:var(--ink-soft);white-space:nowrap}
+  .acct-card{padding:18px;border-radius:14px;border:1px solid var(--line);background:var(--card);box-shadow:var(--shadow);position:relative;overflow:hidden}
+  .acct-card::before{content:"";position:absolute;left:0;top:0;bottom:0;width:4px}
+  .acct-card.a1::before{background:var(--amber)}
+  .acct-card.a2::before{background:var(--teal)}
+  .acct-card.a3::before{background:var(--blue)}
+  .acct-head{display:flex;flex-direction:column;gap:2px;margin-bottom:14px}
+  .acct-name{font-size:15px;font-weight:700}
+  .acct-tag{font-size:11.5px;color:var(--ink-soft)}
+  .acct-total{margin-top:12px;padding-top:12px;border-top:1px dashed var(--line-strong);font-size:13px;color:var(--ink-soft);display:flex;justify-content:space-between}
+  .acct-total b{color:var(--ink);font-weight:700}
+  .strat-row{display:flex;flex-wrap:wrap;gap:12px;align-items:stretch}
+  .strat{flex:1;min-width:240px;cursor:pointer;padding:16px 18px;border:1.5px solid var(--line-strong);border-radius:12px;background:var(--card);transition:.15s;position:relative}
+  .strat:hover{border-color:var(--teal)}
+  .strat.on{border-color:var(--teal);background:var(--teal-soft);box-shadow:0 0 0 3px rgba(14,122,107,.12)}
+  .strat input{position:absolute;opacity:0}
+  .strat .t{font-size:14.5px;font-weight:700;display:flex;align-items:center;gap:8px}
+  .strat .d{font-size:12.5px;color:var(--ink-soft);margin-top:6px}
+  .dot{width:10px;height:10px;border-radius:50%;border:2px solid var(--line-strong);flex:none}
+  .strat.on .dot{border-color:var(--teal);background:var(--teal)}
+  .toggles{display:flex;flex-wrap:wrap;gap:18px;margin-top:14px;padding:14px 18px;background:var(--card);border:1px solid var(--line);border-radius:12px}
+  .chk{display:flex;align-items:center;gap:9px;cursor:pointer;font-size:13.5px}
+  .chk input{width:17px;height:17px;accent-color:var(--teal);cursor:pointer}
+  .chk .sub{color:var(--ink-soft);font-size:12px}
+  .cards{display:grid;grid-template-columns:repeat(auto-fit,minmax(158px,1fr));gap:14px}
+  .stat{padding:18px;border-radius:13px;background:var(--card);border:1px solid var(--line);box-shadow:var(--shadow)}
+  .stat .k{font-size:12px;color:var(--ink-soft);font-weight:600;margin-bottom:8px}
+  .stat .v{font-size:24px;font-weight:800;letter-spacing:-.02em;line-height:1.05}
+  .stat .v small{font-size:13px;font-weight:600;color:var(--ink-soft);margin-left:2px}
+  .stat .s{font-size:11.5px;color:var(--ink-soft);margin-top:6px}
+  .stat.hl{background:var(--teal);border-color:var(--teal)}
+  .stat.hl .k,.stat.hl .s{color:rgba(255,255,255,.78)}
+  .stat.hl .v{color:#fff}
+  .stat.warn{background:var(--clay);border-color:var(--clay)}
+  .stat.warn .k,.stat.warn .s{color:rgba(255,255,255,.82)}
+  .stat.warn .v{color:#fff}
+  .chart-card{padding:20px}
+  .legend{display:flex;flex-wrap:wrap;gap:16px;margin-bottom:14px;font-size:12.5px}
+  .legend span{display:flex;align-items:center;gap:7px;color:var(--ink-soft)}
+  .sw{width:13px;height:13px;border-radius:3px;flex:none}
+  .swl{width:16px;height:0;border-top:2.4px solid var(--ink);flex:none}
+  canvas{width:100%;display:block}
+  #tip{position:fixed;pointer-events:none;background:var(--ink);color:#fff;font-size:12px;padding:9px 11px;border-radius:8px;opacity:0;transition:opacity .1s;z-index:10;max-width:240px;line-height:1.5}
+  #tip .tl{display:flex;justify-content:space-between;gap:14px}
+  #tip .tl span:first-child{color:rgba(255,255,255,.7)}
+  .table-scroll{overflow-x:auto;border:1px solid var(--line);border-radius:13px;background:var(--card);box-shadow:var(--shadow)}
+  table{border-collapse:collapse;width:100%;font-size:13px;min-width:820px}
+  th,td{padding:10px 12px;text-align:right;white-space:nowrap}
+  th{font-size:11.5px;font-weight:700;color:var(--ink-soft);background:#FAF8F3;border-bottom:1.5px solid var(--line-strong);position:sticky;top:0}
+  th:first-child,td:first-child{text-align:center}
+  th.lft,td.lft{text-align:left}
+  tbody tr{border-bottom:1px solid var(--line)}
+  tbody tr:last-child{border-bottom:none}
+  tbody tr:hover{background:#FBFAF6}
+  .pill{display:inline-block;font-size:11px;font-weight:700;padding:2px 8px;border-radius:20px}
+  .pill.low{background:var(--blue-soft);color:var(--blue)}
+  .pill.over{background:var(--clay-soft);color:var(--clay)}
+  .pos-amber{color:var(--amber);font-weight:600}
+  .pos-teal{color:var(--teal);font-weight:600}
+  .pos-blue{color:var(--blue);font-weight:600}
+  .pos-clay{color:var(--clay);font-weight:700}
+  tr.eleven-line td{border-top:2px solid var(--teal)}
+  .warn-row{background:var(--clay-soft) !important}
+  .notes{padding:22px 24px;font-size:13px;color:var(--ink-soft);line-height:1.7}
+  .notes h3{font-size:13px;color:var(--ink);margin:0 0 10px;font-weight:700}
+  .notes p{margin:0 0 10px}
+  .notes b{color:var(--ink)}
+  .foot{margin-top:30px;font-size:12px;color:var(--ink-soft);border-top:1px solid var(--line);padding-top:18px}
+  @media (prefers-reduced-motion: reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<a class="portal-home" href="../index.html" style="display:flex;align-items:center;padding:10px 20px;background:#16213A;color:#E8ECF4;font:600 13px/1.4 -apple-system,'Apple SD Gothic Neo',sans-serif;text-decoration:none">← 잘란부장 연금투자 홈</a>
+<div class="wrap">
+
+  <header class="top">
+    <p class="eyebrow">연금 인출 세금 설계 · 운용 반영</p>
+    <h1>재원별 세금과 운용 수익을<br>동시에 굴리며 인출합니다</h1>
+    <p class="thesis">개시와 함께 직접 운용한다는 가정으로, 잔액은 매년 수익률만큼 불어나고 월 분배금만큼 빠져나갑니다.
+      계좌 안에서 받는 분배금·배당은 인출 전까지 과세이연되어 운용수익(한도대상)으로 쌓입니다. (2026년 세법 기준)</p>
+  </header>
+
+  <section>
+    <div class="sec-label"><span class="sec-num">변수 1</span><h2>기본 정보 · 운용</h2></div>
+    <div class="card base-grid grid">
+      <div class="field"><label>연금 개시 나이</label>
+        <div class="input-row"><input type="number" id="startAge" value="60" min="55" max="90"><span class="unit">세</span></div>
+        <span class="desc">55~69세 5.5% · 70~79세 4.4% · 80~ 3.3%</span></div>
+      <div class="field"><label>수령 종료 나이</label>
+        <div class="input-row"><input type="number" id="endAge" value="90" min="60" max="110"><span class="unit">세</span></div>
+        <span class="desc">시뮬레이션 종료 시점(상속 잔액 확인)</span></div>
+      <div class="field"><label>월 분배금 <span class="desc">(세후 실수령)</span></label>
+        <div class="input-row"><input type="number" id="monthly" value="350" min="0" step="10"><span class="unit">만원/월</span></div>
+        <span class="desc" id="annualEq">연 4,200만원 인출</span></div>
+      <div class="field"><label>연 운용 수익률</label>
+        <div class="input-row"><input type="number" id="ret" value="5" min="0" max="30" step="0.5"><span class="unit">%</span></div>
+        <span class="desc">잔액 전체에 적용(분배+가격, 총수익)</span></div>
+      <div class="field"><label>퇴직금 근속연수</label>
+        <div class="input-row"><input type="number" id="serviceYears" value="25" min="1" max="50"><span class="unit">년</span></div>
+        <span class="desc">퇴직소득세 실효세율을 결정</span></div>
+      <div class="field"><label>그 외 종합과세 소득</label>
+        <div class="input-row"><input type="number" id="otherIncome" value="0" min="0" step="100"><span class="unit">만원/년</span></div>
+        <span class="desc">근로·사업·임대 등 (한도 초과 비교용)</span></div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-label"><span class="sec-num">변수 2</span><h2>계좌별 잔액</h2>
+      <span class="hint">기본금액(원금)과 운용수익을 나눠 입력 · 단위 만원</span></div>
+    <div class="acct-grid grid">
+      <div class="acct-card a1">
+        <div class="acct-head"><span class="acct-name">① 세액공제 안 받은 연금</span><span class="acct-tag">원금=비과세 · 수익=한도대상</span></div>
+        <div class="field"><label>납입원금 <span class="desc">(비과세)</span></label>
+          <div class="input-row"><input type="number" id="a1n" value="6667" min="0" step="100"><span class="unit">만원</span></div></div>
+        <div class="field" style="margin-top:12px"><label>운용수익 <span class="desc">(저율 한도대상)</span></label>
+          <div class="input-row"><input type="number" id="a1g" value="3333" min="0" step="100"><span class="unit">만원</span></div></div>
+        <div class="acct-total"><span>계좌 합계</span><b id="t1">1억원</b></div>
+      </div>
+      <div class="acct-card a2">
+        <div class="acct-head"><span class="acct-name">② IRP (퇴직연금)</span><span class="acct-tag">퇴직금=감면·종합과세X · 수익=한도대상</span></div>
+        <div class="field"><label>이연퇴직소득 <span class="desc">(퇴직금 원금)</span></label>
+          <div class="input-row"><input type="number" id="a2r" value="40000" min="0" step="100"><span class="unit">만원</span></div></div>
+        <div class="field" style="margin-top:12px"><label>운용수익 <span class="desc">(저율 한도대상)</span></label>
+          <div class="input-row"><input type="number" id="a2g" value="20000" min="0" step="100"><span class="unit">만원</span></div></div>
+        <div class="acct-total"><span>계좌 합계</span><b id="t2">6억원</b></div>
+      </div>
+      <div class="acct-card a3">
+        <div class="acct-head"><span class="acct-name">③ 연금저축 (세액공제)</span><span class="acct-tag">원금·수익 전액 한도대상</span></div>
+        <div class="field"><label>세액공제 원금 <span class="desc">(한도대상)</span></label>
+          <div class="input-row"><input type="number" id="a3p" value="6667" min="0" step="100"><span class="unit">만원</span></div></div>
+        <div class="field" style="margin-top:12px"><label>운용수익 <span class="desc">(한도대상)</span></label>
+          <div class="input-row"><input type="number" id="a3g" value="3333" min="0" step="100"><span class="unit">만원</span></div></div>
+        <div class="acct-total"><span>계좌 합계</span><b id="t3">1억원</b></div>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-label"><span class="sec-num">변수 3</span><h2>인출 전략</h2></div>
+    <div class="strat-row">
+      <label class="strat on" data-strat="balanced">
+        <input type="radio" name="strat" value="balanced" checked>
+        <div class="t"><span class="dot"></span>균형형</div>
+        <div class="d">매년 한도대상 1,500만(저율)을 채우고, 퇴직소득 재원으로 현금흐름을 메웁니다. 빠르고 단순.</div>
+      </label>
+      <label class="strat" data-strat="eleven">
+        <input type="radio" name="strat" value="eleven">
+        <div class="t"><span class="dot"></span>11년차 최적화</div>
+        <div class="d">1~10년차엔 비과세·한도대상으로 버티고, 퇴직금은 11년차 이후(40% 감면)로 미뤄 세금을 더 줄입니다.</div>
+      </label>
+    </div>
+    <div class="toggles">
+      <label class="chk"><input type="checkbox" id="lifelong"> 종신연금형 <span class="sub">(저율 4.4% 고정)</span></label>
+      <label class="chk"><input type="checkbox" id="pre2013"> 2013년 이전 개설 계좌 <span class="sub">(수령연차 6년차부터 기산)</span></label>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-label"><span class="sec-num">결과</span><h2>요약</h2>
+      <span class="hint" id="retire-eff"></span></div>
+    <div class="cards" id="cards"></div>
+  </section>
+
+  <section>
+    <div class="sec-label"><span class="sec-num">흐름</span><h2>연차별 인출 vs 잔여재원</h2>
+      <span class="hint">막대=세전 인출(재원별, 좌축) · 선=연말 잔여재원(우축)</span></div>
+    <div class="card chart-card">
+      <div class="legend">
+        <span><i class="sw" style="background:var(--amber)"></i>비과세 원금</span>
+        <span><i class="sw" style="background:var(--teal)"></i>이연퇴직소득(감면)</span>
+        <span><i class="sw" style="background:var(--blue)"></i>한도대상 저율</span>
+        <span><i class="sw" style="background:var(--clay)"></i>한도초과(종합/16.5%)</span>
+        <span><i class="swl"></i>잔여재원</span>
+      </div>
+      <canvas id="chart" height="300"></canvas>
+    </div>
+  </section>
+
+  <section>
+    <div class="sec-label"><span class="sec-num">상세</span><h2>연차별 인출표</h2>
+      <span class="hint">금액 단위 만원</span></div>
+    <div class="table-scroll">
+      <table>
+        <thead><tr>
+          <th>연차</th><th>나이</th>
+          <th class="lft">비과세</th><th>퇴직소득</th><th>한도대상</th><th>구분</th>
+          <th>세전합계</th><th>세금</th><th>세후</th><th>실효</th><th>연말 잔여</th>
+        </tr></thead>
+        <tbody id="tbody"></tbody>
+      </table>
+    </div>
+  </section>
+
+  <section>
+    <div class="card notes">
+      <h3>계산 근거와 가정</h3>
+      <p><b>운용·분배금.</b> 매년 연말 잔여 잔액에 운용 수익률을 적용해 불립니다. 계좌 내부에서 받는 분배금·배당은 인출 전까지 과세이연되므로, 불어난 금액은 전부 <b>운용수익(한도대상) 재원</b>으로 쌓입니다. 비과세 원금·이연퇴직소득·세액공제 원금은 고정되고, 수익만 한도대상으로 누적됩니다. 따라서 잔액이 커질수록 1,500만원 한도를 넘기기 쉬워집니다.</p>
+      <p><b>재원 분류.</b> 비과세 원금은 세금·한도 무관. 이연퇴직소득(퇴직금)은 퇴직소득세를 1~10년차 70%·11년차 이후 60%만 부과(30~40% 감면)하며 금액과 무관하게 종합과세에서 제외됩니다. 그 외(세액공제 원금·모든 운용수익)는 합산 연 1,500만 이하면 나이별 3.3~5.5% 저율 분리과세로 종결됩니다.</p>
+      <p><b>1,500만원 초과 시</b> 그해 한도대상 전액에 종합과세와 16.5% 중 유리한 쪽을 자동 선택합니다(다른 소득이 적으면 종합과세가 더 쌀 수 있음). 표에 <span class="pill over">초과</span>로 표시됩니다. 참고로 <b>월 125만원(연 1,500만) 안쪽</b>이면 평생 저율 구간을 유지하면서 잔액이 불어납니다.</p>
+      <p><b>월 분배금</b>은 세후 실수령 기준입니다. 엔진이 세금을 역산해 세전 인출액을 구합니다. <b>건강보험료</b>는 사적연금이라 0으로 처리합니다.</p>
+      <p><b>퇴직소득세</b>는 입력한 퇴직금·근속연수로 연분연승 계산 후 지방소득세 10%를 더한 추정치입니다. 연금수령한도는 IRP 퇴직금 재원에만 [평가액÷(11−연차)×120%]로 적용했습니다.</p>
+      <p class="foot">교육용 추정 도구입니다. 실제 인출 전 세무 전문가 확인을 권장하며, 세법 개정 시 결과가 달라질 수 있습니다.</p>
+    </div>
+  </section>
+
+</div>
+<div id="tip"></div>
+
+<script>
+const W=10000;
+const $=id=>document.getElementById(id);
+const fmtMan=v=>Math.round(v/W).toLocaleString('ko-KR');
+const fmtEok=v=>{const e=v/1e8;return (e>=1?e.toFixed(e>=10?1:2)+'억':Math.round(v/W).toLocaleString()+'만');};
+
+function basicTaxNational(b){if(b<=0)return 0;
+  const t=[[14e6,.06,0],[5e7,.15,1.26e6],[88e6,.24,5.76e6],[15e7,.35,15.44e6],
+    [3e8,.38,19.94e6],[5e8,.40,25.94e6],[1e9,.42,35.94e6],[Infinity,.45,65.94e6]];
+  for(const[c,r,d]of t)if(b<=c)return b*r-d;}
+function retirementTax(sev,yr){if(sev<=0||yr<=0)return{eff:0};
+  let d;if(yr<=5)d=1e6*yr;else if(yr<=10)d=5e6+2e6*(yr-5);
+  else if(yr<=20)d=15e6+2.5e6*(yr-10);else d=4e7+3e6*(yr-20);
+  const h=Math.max(0,(sev-d)/yr*12);let hd;
+  if(h<=8e6)hd=h;else if(h<=7e7)hd=8e6+(h-8e6)*.6;
+  else if(h<=1e8)hd=45.2e6+(h-7e7)*.55;else if(h<=3e8)hd=61.7e6+(h-1e8)*.45;
+  else hd=151.7e6+(h-3e8)*.35;
+  const base=Math.max(0,h-hd);return{eff:(basicTaxNational(base)/12*yr*1.1)/sev};}
+function pensionDed(x){let v;if(x<=3.5e6)v=x;else if(x<=7e6)v=3.5e6+(x-3.5e6)*.4;
+  else if(x<=14e6)v=4.9e6+(x-7e6)*.2;else v=6.3e6+(x-14e6)*.1;return Math.min(v,9e6);}
+function overLimitTax(g,o){const ded=pensionDed(g),p=1.5e6;
+  const bw=Math.max(0,o+(g-ded)-p),bo=Math.max(0,o-p);
+  const comp=(basicTaxNational(bw)-basicTaxNational(bo))*1.1;const sep=g*.165;
+  return sep<=comp?{tax:sep,m:'16.5%'}:{tax:comp,m:'종합'};}
+const LIMIT=15e6;
+
+function simulate(p){
+  let{a1n,a1g,a2r,a2g,a3}=p; const r=p.annualReturn;
+  const retire=retirementTax(p.a2r,p.serviceYears);
+  const rows=[];let totG=0,totT=0,totNon=0;
+  for(let yr=1;;yr++){
+    const age=p.startAge+yr-1; if(age>p.endAge)break;
+    const yc=p.pre2013?yr+5:yr;
+    const low=p.lifelong?.044:age<70?.055:age<80?.044:.033;
+    const reduce=yc<=10?.7:.6, rRate=retire.eff*reduce;
+    const irpRem=a2r+a2g, irpLimit=yc>=11?Infinity:(irpRem/(11-yc))*1.2;
+    let net=0,gross=0,tax=0,wNon=0,wRet=0,wRetOver=0,wLow=0,wOver=0,irpDrawn=0;
+    const T=p.targetNet, need=()=>Math.max(0,T-net);
+    const drawNon=max=>{const a=Math.min(a1n,max,need());if(a<=0)return;a1n-=a;wNon+=a;gross+=a;net+=a;totNon+=a;};
+    const drawRet=max=>{const room=Math.max(0,irpLimit-irpDrawn);
+      const a=Math.min(a2r,max,room,need()/(1-rRate));if(a<=0)return;
+      a2r-=a;irpDrawn+=a;wRet+=a;gross+=a;const t=a*rRate;tax+=t;net+=a-t;};
+    const drawLow=max=>{let room=Math.min(max,Math.max(0,LIMIT-wLow));
+      const g1=a1n<=0?a1g:0,g2=a2r<=0?a2g:0,pool=a3+g1+g2;
+      let want=Math.min(room,pool,need()/(1-low));if(want<=0)return;
+      let take=want;const f3=Math.min(a3,take);a3-=f3;take-=f3;
+      const f1=Math.min(g1,take);a1g-=f1;take-=f1;const f2=Math.min(g2,take);a2g-=f2;
+      wLow+=want;gross+=want;const t=want*low;tax+=t;net+=want-t;};
+    if(p.strategy==='eleven'&&yc<=10){drawLow(LIMIT);drawNon(Infinity);drawRet(Infinity);}
+    else if(p.strategy==='eleven'&&yc>=11){drawRet(Infinity);drawLow(LIMIT);drawNon(Infinity);}
+    else{drawLow(LIMIT);drawRet(Infinity);drawNon(Infinity);}
+    if(need()>0&&a2r>0){const a=Math.min(a2r,need()/(1-retire.eff));
+      a2r-=a;wRetOver+=a;gross+=a;const t=a*retire.eff;tax+=t;net+=a-t;}
+    if(need()>0){const g1=a1n<=0?a1g:0,g2=a2r<=0?a2g:0,pool=a3+g1+g2;
+      const a=Math.min(pool,need());if(a>0){let take=a;
+        const f3=Math.min(a3,take);a3-=f3;take-=f3;const f1=Math.min(g1,take);a1g-=f1;take-=f1;
+        const f2=Math.min(g2,take);a2g-=f2;wOver+=a;gross+=a;net+=a;}}
+    let method='';const lowTot=wLow+wOver;
+    if(lowTot>LIMIT){tax-=wLow*low;const o=overLimitTax(lowTot,p.otherIncome);tax+=o.tax;method=o.m;}
+    const short=net<T-1;
+    a1g+=(a1n+a1g)*r; a2g+=(a2r+a2g)*r; a3+=a3*r;  // 운용수익 성장 -> 한도대상 누적
+    const rem=a1n+a1g+a2r+a2g+a3;
+    totG+=gross;totT+=tax;
+    rows.push({yr,age,yc,low,wNon,wRet:wRet+wRetOver,wLow:wLow+wOver,over:wOver>0||wRetOver>0,
+      method,gross,tax,net,eff:gross?tax/gross:0,rem,short});
+    if(rem<=1){break;}
+  }
+  const last=rows[rows.length-1];
+  return{rows,retireEff:retire.eff,totG,totT,totNon,avg:totG?totT/totG:0,
+    endBal:last?last.rem:0, depletedAge:(last&&last.rem<=1)?last.age:null,
+    survived:!!last&&last.age>=p.endAge&&!last.short};
+}
+
+function read(){
+  const g=id=>Math.max(0,(parseFloat($(id).value)||0));
+  const mo=g('monthly');
+  return{startAge:Math.max(55,parseInt($('startAge').value)||60),
+    endAge:Math.max(60,parseInt($('endAge').value)||90),
+    targetNet:mo*12*W, annualReturn:g('ret')/100,
+    serviceYears:Math.max(1,parseInt($('serviceYears').value)||1),
+    otherIncome:g('otherIncome')*W, lifelong:$('lifelong').checked, pre2013:$('pre2013').checked,
+    strategy:document.querySelector('input[name=strat]:checked').value,
+    a1n:g('a1n')*W,a1g:g('a1g')*W,a2r:g('a2r')*W,a2g:g('a2g')*W,a3:(g('a3p')+g('a3g'))*W};
+}
+
+let lastRows=[];
+function render(){
+  const tot=(...ids)=>ids.reduce((s,id)=>s+(parseFloat($(id).value)||0),0)*W;
+  $('t1').textContent=fmtEok(tot('a1n','a1g'));
+  $('t2').textContent=fmtEok(tot('a2r','a2g'));
+  $('t3').textContent=fmtEok(tot('a3p','a3g'));
+  const mo=Math.max(0,parseFloat($('monthly').value)||0);
+  $('annualEq').textContent='연 '+(mo*12).toLocaleString()+'만원 인출';
+
+  const p=read(), r=simulate(p);
+  lastRows=r.rows;
+  $('retire-eff').textContent='퇴직소득세 실효세율 '+(r.retireEff*100).toFixed(2)+'% (일시금 기준)';
+
+  const overYears=r.rows.filter(x=>x.method).length;
+  const survived=r.survived;
+  const cards=[];
+  if(survived){
+    cards.push({k:'지속 가능성',v:'유지',u:'',s:`${p.endAge}세까지 소진 안 됨`,cls:'hl'});
+  }else{
+    cards.push({k:'지속 가능성',v:(r.depletedAge||p.endAge),u:'세 소진',s:'현금흐름 조정 필요',cls:'warn'});
+  }
+  cards.push({k:'종료 시 잔여재원',v:fmtEok(r.endBal),u:'',s:`${p.endAge}세 상속 가능액`,cls:''});
+  cards.push({k:'평균 실효세율',v:(r.avg*100).toFixed(2),u:'%',s:'전 기간 가중평균',cls:r.avg>0.08?'warn':''});
+  cards.push({k:'총 세금',v:fmtMan(r.totT),u:'만원',s:`세전 인출 ${fmtEok(r.totG)}`,cls:''});
+  cards.push({k:'비과세 활용',v:fmtMan(r.totNon),u:'만원',s:'세금 0원 인출',cls:''});
+  cards.push({k:overYears?'종합·16.5% 발생':'저율과세 종결',v:overYears||r.rows.length,u:'년',
+    s:overYears?'1,500만 초과 연도':'전 연도 저율',cls:''});
+  $('cards').innerHTML=cards.map(c=>`<div class="stat ${c.cls}">
+    <div class="k">${c.k}</div><div class="v">${c.v}<small>${c.u}</small></div><div class="s">${c.s}</div></div>`).join('');
+
+  const td=v=>`<td><span class="num">${v?fmtMan(v):'–'}</span></td>`;
+  $('tbody').innerHTML=r.rows.map(x=>{
+    const pill=x.method?`<span class="pill over">${x.method}</span>`:`<span class="pill low">${(x.low*100).toFixed(1)}%</span>`;
+    const elevenMark=(p.strategy==='eleven'&&x.yc===11)?' eleven-line':'';
+    return `<tr class="${x.short?'warn-row':''}${elevenMark}">
+      <td>${x.yc}</td><td>${x.age}</td>
+      <td class="lft"><span class="num pos-amber">${x.wNon?fmtMan(x.wNon):'–'}</span></td>
+      <td><span class="num pos-teal">${x.wRet?fmtMan(x.wRet):'–'}</span></td>
+      <td><span class="num ${x.over?'pos-clay':'pos-blue'}">${x.wLow?fmtMan(x.wLow):'–'}</span></td>
+      <td>${pill}</td>${td(x.gross)}
+      <td><span class="num pos-clay">${fmtMan(x.tax)}</span></td>${td(x.net)}
+      <td><span class="num">${(x.eff*100).toFixed(1)}%</span></td>
+      <td><span class="num">${fmtEok(x.rem)}</span></td></tr>`;
+  }).join('');
+
+  drawChart(r.rows);
+}
+
+const cv=$('chart'),ctx=cv.getContext('2d');
+let chartGeo=null;
+function niceMax(v){if(v<=0)return 1;const p=Math.pow(10,Math.floor(Math.log10(v)));const n=v/p;
+  const s=n<=1?1:n<=2?2:n<=5?5:10;return s*p;}
+function drawChart(rows){
+  const dpr=window.devicePixelRatio||1,cssW=cv.clientWidth,cssH=300;
+  cv.width=cssW*dpr;cv.height=cssH*dpr;ctx.setTransform(dpr,0,0,dpr,0,0);ctx.clearRect(0,0,cssW,cssH);
+  if(!rows.length)return;
+  const padL=48,padR=52,padT=14,padB=28,w=cssW-padL-padR,h=cssH-padT-padB;
+  const maxStack=niceMax(Math.max(...rows.map(x=>x.wNon+x.wRet+x.wLow),1));
+  const maxBal=niceMax(Math.max(...rows.map(x=>x.rem),1));
+  const n=rows.length,gap=w/n,bw=Math.min(34,gap*0.62);
+  const css=getComputedStyle(document.documentElement);
+  const C={amber:css.getPropertyValue('--amber'),teal:css.getPropertyValue('--teal'),
+    blue:css.getPropertyValue('--blue'),clay:css.getPropertyValue('--clay'),
+    ink:css.getPropertyValue('--ink'),line:css.getPropertyValue('--line'),soft:css.getPropertyValue('--ink-soft')};
+  ctx.strokeStyle=C.line;ctx.fillStyle=C.soft;ctx.font='11px Pretendard,sans-serif';ctx.lineWidth=1;
+  for(let i=0;i<=4;i++){const y=padT+h-(h*i/4);ctx.beginPath();ctx.moveTo(padL,y);ctx.lineTo(padL+w,y);ctx.stroke();
+    ctx.textAlign='right';ctx.fillStyle=C.soft;ctx.fillText(fmtMan(maxStack*i/4),padL-6,y+3);
+    ctx.textAlign='left';ctx.fillText((maxBal*i/4/1e8).toFixed(maxBal/1e8>=10?0:1)+'억',padL+w+8,y+3);}
+  const bars=[];
+  rows.forEach((x,i)=>{const cx=padL+gap*i+gap/2,x0=cx-bw/2;let acc=0;
+    const seg=(val,col)=>{if(val<=0)return;const bh=h*val/maxStack;const y=padT+h-acc-bh;ctx.fillStyle=col;ctx.fillRect(x0,y,bw,bh);acc+=bh;};
+    seg(x.wNon,C.amber);seg(x.wRet,C.teal);seg(x.over?0:x.wLow,C.blue);seg(x.over?x.wLow:0,C.clay);
+    bars.push({x:x0,w:bw,cx,row:x});});
+  // 잔여재원 line (right axis)
+  ctx.strokeStyle=C.ink;ctx.lineWidth=2.2;ctx.beginPath();
+  rows.forEach((x,i)=>{const cx=padL+gap*i+gap/2,y=padT+h-(h*x.rem/maxBal);i?ctx.lineTo(cx,y):ctx.moveTo(cx,y);});
+  ctx.stroke();
+  rows.forEach((x,i)=>{const cx=padL+gap*i+gap/2,y=padT+h-(h*x.rem/maxBal);
+    ctx.fillStyle='#fff';ctx.strokeStyle=C.ink;ctx.lineWidth=1.6;ctx.beginPath();ctx.arc(cx,y,2.8,0,7);ctx.fill();ctx.stroke();});
+  ctx.fillStyle=C.soft;ctx.textAlign='center';
+  rows.forEach((x,i)=>{if(n<=22||i%2===0)ctx.fillText(x.yc,padL+gap*i+gap/2,cssH-10);});
+  chartGeo={bars};
+}
+const tip=$('tip');
+cv.addEventListener('mousemove',e=>{if(!chartGeo)return;const rect=cv.getBoundingClientRect();const mx=e.clientX-rect.left;
+  const hit=chartGeo.bars.find(b=>mx>=b.x-4&&mx<=b.x+b.w+4);if(!hit){tip.style.opacity=0;return;}
+  const x=hit.row;
+  tip.innerHTML=`<b>${x.yc}년차 · ${x.age}세</b>
+    <div class="tl"><span>비과세</span><span>${fmtMan(x.wNon)}만</span></div>
+    <div class="tl"><span>퇴직소득</span><span>${fmtMan(x.wRet)}만</span></div>
+    <div class="tl"><span>한도대상</span><span>${fmtMan(x.wLow)}만 ${x.method?'('+x.method+')':''}</span></div>
+    <div class="tl"><span>세금</span><span>${fmtMan(x.tax)}만 · ${(x.eff*100).toFixed(1)}%</span></div>
+    <div class="tl"><span>연말 잔여</span><span>${fmtEok(x.rem)}</span></div>`;
+  tip.style.opacity=1;tip.style.left=Math.min(e.clientX+14,window.innerWidth-250)+'px';tip.style.top=(e.clientY+14)+'px';});
+cv.addEventListener('mouseleave',()=>tip.style.opacity=0);
+
+document.querySelectorAll('input,select').forEach(el=>el.addEventListener('input',render));
+document.querySelectorAll('input[name=strat]').forEach(el=>el.addEventListener('change',()=>{
+  document.querySelectorAll('.strat').forEach(s=>s.classList.remove('on'));
+  document.querySelector(`.strat[data-strat="${el.value}"]`).classList.add('on');render();}));
+window.addEventListener('resize',()=>drawChart(lastRows));
+render();
+</script>
+</body>
+</html>

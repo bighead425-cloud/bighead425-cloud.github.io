@@ -1,0 +1,592 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>ISA 손익통산 · 세금 계산기</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nanum+Myeongjo:wght@400;700;800&family=Noto+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --desk:#DDE2E6;
+    --desk-shadow:#c7ced4;
+    --navy:#0F2038;
+    --navy-deep:#081324;
+    --navy-line:#24395C;
+    --gold:#C9A659;
+    --gold-soft:#E4CD8E;
+    --paper:#F3F1EA;
+    --paper-line:#D9D4C4;
+    --ink:#1B2430;
+    --ink-soft:#5B6472;
+    --stamp-red:#A93226;
+    --stamp-green:#2E7D6B;
+    --radius:14px;
+  }
+
+  *{ box-sizing:border-box; }
+
+  body{
+    margin:0;
+    min-height:100vh;
+    background:
+      radial-gradient(circle at 20% -10%, #eef1f3 0%, var(--desk) 45%, var(--desk-shadow) 100%);
+    font-family:'Noto Sans KR', sans-serif;
+    color:var(--ink);
+    padding:0 0 80px;
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+  }
+
+  .stage{
+    width:100%;
+    max-width:920px;
+    padding:40px 16px 0;
+  }
+
+  /* ---------- Passbook Header ---------- */
+  .passbook{
+    background:linear-gradient(160deg, var(--navy) 0%, var(--navy-deep) 100%);
+    border-radius:var(--radius);
+    padding:34px 36px 28px;
+    color:#EFE9DA;
+    box-shadow: 0 18px 40px -18px rgba(8,19,36,0.55), 0 2px 0 var(--gold-soft) inset;
+    position:relative;
+    overflow:hidden;
+  }
+  .passbook::before{
+    content:"";
+    position:absolute; inset:8px;
+    border:1px solid rgba(201,166,89,0.35);
+    border-radius:calc(var(--radius) - 4px);
+    pointer-events:none;
+  }
+  .eyebrow{
+    font-family:'IBM Plex Mono', monospace;
+    letter-spacing:.18em;
+    font-size:11.5px;
+    color:var(--gold-soft);
+    text-transform:uppercase;
+    margin-bottom:10px;
+  }
+  .passbook h1{
+    font-family:'Nanum Myeongjo', serif;
+    font-weight:800;
+    font-size:30px;
+    margin:0 0 6px;
+    letter-spacing:-0.01em;
+  }
+  .passbook p.sub{
+    margin:0;
+    font-size:13.5px;
+    color:#B9C2D4;
+    line-height:1.6;
+    max-width:560px;
+  }
+
+  .account-toggle{
+    margin-top:22px;
+    display:flex;
+    gap:10px;
+    flex-wrap:wrap;
+  }
+  .account-toggle button{
+    appearance:none;
+    border:1px solid var(--navy-line);
+    background:rgba(255,255,255,0.03);
+    color:#CDD5E3;
+    padding:10px 16px;
+    border-radius:999px;
+    font-family:'Noto Sans KR', sans-serif;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    transition:.18s ease;
+  }
+  .account-toggle button.active{
+    background:var(--gold);
+    color:#241B08;
+    border-color:var(--gold);
+  }
+  .account-toggle button:hover:not(.active){
+    border-color:var(--gold-soft);
+    color:var(--gold-soft);
+  }
+
+  /* ---------- Ledger card ---------- */
+  .ledger{
+    background:var(--paper);
+    border-radius:var(--radius);
+    margin-top:18px;
+    padding:26px 26px 20px;
+    box-shadow:0 14px 30px -22px rgba(0,0,0,0.35);
+    border:1px solid var(--paper-line);
+  }
+  .ledger h2{
+    font-family:'Nanum Myeongjo', serif;
+    font-size:18px;
+    margin:0 0 4px;
+    display:flex;
+    align-items:baseline;
+    gap:8px;
+  }
+  .ledger h2 .num{
+    font-family:'IBM Plex Mono', monospace;
+    color:var(--stamp-red);
+    font-size:14px;
+  }
+  .ledger .hint{
+    font-size:12.5px;
+    color:var(--ink-soft);
+    margin:0 0 18px;
+    line-height:1.6;
+  }
+
+  table.rows{
+    width:100%;
+    border-collapse:collapse;
+  }
+  table.rows thead th{
+    text-align:left;
+    font-size:11.5px;
+    letter-spacing:.04em;
+    color:var(--ink-soft);
+    font-weight:600;
+    padding:0 8px 8px;
+    border-bottom:1px solid var(--paper-line);
+  }
+  table.rows tbody td{
+    padding:9px 8px;
+    border-bottom:1px dashed var(--paper-line);
+    vertical-align:middle;
+  }
+  table.rows input[type="text"],
+  table.rows input[type="number"],
+  table.rows select{
+    width:100%;
+    font-family:'Noto Sans KR', sans-serif;
+    font-size:13.5px;
+    padding:8px 9px;
+    border-radius:8px;
+    border:1px solid var(--paper-line);
+    background:#fff;
+    color:var(--ink);
+  }
+  table.rows input[type="number"]{
+    font-family:'IBM Plex Mono', monospace;
+    text-align:right;
+  }
+  table.rows select:focus,
+  table.rows input:focus{
+    outline:2px solid var(--gold);
+    outline-offset:1px;
+    border-color:var(--gold);
+  }
+
+  .badge{
+    display:inline-block;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    font-weight:600;
+    padding:4px 9px;
+    border-radius:999px;
+    white-space:nowrap;
+  }
+  .badge.taxable{ background:rgba(169,50,38,0.1); color:var(--stamp-red); }
+  .badge.exempt{ background:rgba(46,125,107,0.1); color:var(--stamp-green); }
+
+  .del-btn{
+    background:none;
+    border:none;
+    color:#9C8F6F;
+    cursor:pointer;
+    font-size:16px;
+    line-height:1;
+    padding:6px;
+    border-radius:6px;
+  }
+  .del-btn:hover{ background:rgba(169,50,38,0.08); color:var(--stamp-red); }
+
+  .add-row{
+    margin-top:14px;
+    appearance:none;
+    border:1px dashed #A99B72;
+    background:transparent;
+    color:#6B5E3C;
+    padding:9px 16px;
+    border-radius:9px;
+    font-size:13px;
+    font-weight:600;
+    cursor:pointer;
+    font-family:'Noto Sans KR', sans-serif;
+  }
+  .add-row:hover{ background:rgba(201,166,89,0.12); }
+
+  .calc-btn{
+    margin-top:20px;
+    width:100%;
+    appearance:none;
+    border:none;
+    background:linear-gradient(160deg, var(--navy) 0%, var(--navy-deep) 100%);
+    color:var(--gold-soft);
+    padding:14px 20px;
+    border-radius:10px;
+    font-size:15px;
+    font-weight:700;
+    letter-spacing:.02em;
+    cursor:pointer;
+    box-shadow:0 10px 20px -12px rgba(15,32,56,0.6);
+  }
+  .calc-btn:hover{ filter:brightness(1.08); }
+
+  /* ---------- Result / printout ---------- */
+  .result{
+    background:var(--paper);
+    border-radius:var(--radius);
+    margin-top:18px;
+    padding:26px;
+    border:1px solid var(--paper-line);
+    display:grid;
+    grid-template-columns: 1fr 200px;
+    gap:22px;
+    align-items:center;
+  }
+  @media (max-width:640px){
+    .result{ grid-template-columns:1fr; }
+  }
+
+  .printout .line{
+    display:flex;
+    justify-content:space-between;
+    align-items:baseline;
+    font-family:'IBM Plex Mono', monospace;
+    font-size:13.5px;
+    padding:7px 0;
+    border-bottom:1px dotted var(--paper-line);
+  }
+  .printout .line .label{
+    color:var(--ink-soft);
+    font-family:'Noto Sans KR', sans-serif;
+    font-size:13px;
+  }
+  .printout .line.total{
+    border-bottom:none;
+    margin-top:6px;
+    padding-top:12px;
+    border-top:1px solid var(--ink);
+  }
+  .printout .line.total .label{
+    font-weight:700;
+    color:var(--ink);
+  }
+  .printout .line.total .val{
+    font-size:19px;
+    font-weight:700;
+  }
+  .printout .val.neg{ color:var(--stamp-red); }
+
+  .exempt-list{
+    margin-top:14px;
+    font-size:12px;
+    color:var(--ink-soft);
+    line-height:1.7;
+  }
+  .exempt-list b{ color:var(--ink); }
+
+  /* ---------- Stamp ---------- */
+  .stamp-wrap{
+    display:flex;
+    align-items:center;
+    justify-content:center;
+  }
+  .stamp{
+    width:150px;
+    height:150px;
+    border-radius:50%;
+    border:4px solid var(--stamp-red);
+    display:flex;
+    flex-direction:column;
+    align-items:center;
+    justify-content:center;
+    color:var(--stamp-red);
+    text-align:center;
+    font-family:'Nanum Myeongjo', serif;
+    transform:scale(1.5) rotate(-8deg);
+    opacity:0;
+    transition:transform .45s cubic-bezier(.2,1.4,.4,1), opacity .3s ease;
+    position:relative;
+  }
+  .stamp::before{
+    content:"";
+    position:absolute; inset:6px;
+    border:1px solid var(--stamp-red);
+    border-radius:50%;
+    opacity:.6;
+  }
+  .stamp.show{
+    transform:scale(1) rotate(-8deg);
+    opacity:.92;
+  }
+  .stamp.exempt-stamp{
+    border-color:var(--stamp-green);
+    color:var(--stamp-green);
+  }
+  .stamp.exempt-stamp::before{ border-color:var(--stamp-green); }
+  .stamp .big{
+    font-size:20px;
+    font-weight:800;
+    letter-spacing:.02em;
+  }
+  .stamp .small{
+    font-family:'IBM Plex Mono', monospace;
+    font-size:11px;
+    margin-top:5px;
+  }
+
+  .footnote{
+    margin-top:20px;
+    font-size:11.5px;
+    color:var(--ink-soft);
+    line-height:1.7;
+    padding:0 6px;
+  }
+</style>
+</head>
+<body>
+<a class="portal-home" href="../index.html" style="display:flex;align-self:stretch;align-items:center;padding:10px 20px;background:#16213A;color:#E8ECF4;font:600 13px/1.4 -apple-system,'Apple SD Gothic Neo',sans-serif;text-decoration:none">← 잘란부장 연금투자 홈</a>
+<div class="stage">
+
+  <div class="passbook">
+    <div class="eyebrow">개인종합자산관리계좌 · ISA</div>
+    <h1>ISA 손익통산 세금 계산기</h1>
+    <p class="sub">계좌에 담긴 종목별 손익을 입력하면, 세법상 비과세 항목을 제외한 뒤 과세대상 소득만 손익통산하여
+      비과세 한도 적용 후 최종 분리과세 세액을 계산합니다.</p>
+
+    <div class="account-toggle" id="accountToggle">
+      <button data-limit="2000000" class="active">일반형 · 200만원 비과세</button>
+      <button data-limit="4000000">서민형 · 농어민형 · 400만원 비과세</button>
+    </div>
+  </div>
+
+  <div class="ledger">
+    <h2>보유 종목 입력 <span class="num" id="rowCount">0건</span></h2>
+    <p class="hint">자산유형과 소득유형을 선택하면 세법상 과세대상 여부가 자동으로 표시됩니다.
+      국내 상장주식·국내주식형 ETF·국내채권의 <b>매매차익</b>은 원래 비과세이므로 손익통산에서 제외됩니다.</p>
+
+    <table class="rows">
+      <thead>
+        <tr>
+          <th style="width:20%">종목명</th>
+          <th style="width:22%">자산유형</th>
+          <th style="width:18%">소득유형</th>
+          <th style="width:16%">금액(원)</th>
+          <th style="width:14%">과세여부</th>
+          <th style="width:6%"></th>
+        </tr>
+      </thead>
+      <tbody id="rowsBody"></tbody>
+    </table>
+
+    <button class="add-row" id="addRowBtn">+ 종목 추가</button>
+    <button class="calc-btn" id="calcBtn">계산하기</button>
+  </div>
+
+  <div class="result">
+    <div class="printout" id="printout">
+      <div class="line"><span class="label">과세대상 손익 합계 (손익통산)</span><span class="val" id="rNet">0원</span></div>
+      <div class="line"><span class="label">비과세 한도</span><span class="val" id="rLimit">-2,000,000원</span></div>
+      <div class="line total"><span class="label">과세표준 (한도 초과분)</span><span class="val" id="rBase">0원</span></div>
+      <div class="line total"><span class="label">최종 납부세액 (9.9%)</span><span class="val" id="rTax">0원</span></div>
+
+      <div class="exempt-list" id="exemptList"></div>
+    </div>
+
+    <div class="stamp-wrap">
+      <div class="stamp" id="stamp">
+        <div class="big" id="stampText">비과세</div>
+        <div class="small" id="stampSub">TAX FREE</div>
+      </div>
+    </div>
+  </div>
+
+  <p class="footnote">
+    · 본 계산기는 이해를 돕기 위한 참고용 도구이며, 실제 과세는 ETF의 보유기간과세 방식(과표기준가 증가분과 실제 매매차익 중 작은 금액 적용), 세법 개정 여부에 따라 달라질 수 있습니다.<br>
+    · 서민형·농어민형은 총급여 5,000만원(종합소득 3,800만원) 이하 등 별도 가입 요건을 충족해야 합니다.<br>
+    · ISA는 계좌 해지·만기 시점에 가입 기간 전체 손익을 한 번에 통산하여 정산하는 구조입니다.
+  </p>
+
+</div>
+
+<script>
+  // ---- 자산유형별 소득유형 옵션 & 과세 판정표 ----
+  const ASSET_TYPES = {
+    dom_stock:   { label: "국내 상장주식",              incomes: ["gain","dividend"] },
+    dom_eq_etf:  { label: "국내주식형 ETF/펀드",         incomes: ["gain","distribution"] },
+    other_etf:   { label: "기타 ETF/펀드 (해외·채권·원자재·커버드콜 등)", incomes: ["gain","distribution"] },
+    dom_bond:    { label: "국내 채권 (직접투자)",         incomes: ["gain","interest"] },
+    deposit:     { label: "예금·적금",                   incomes: ["interest"] },
+  };
+
+  const INCOME_LABELS = {
+    gain: "매매차익/평가손익",
+    dividend: "배당금",
+    distribution: "분배금",
+    interest: "이자소득",
+  };
+
+  // true = 과세대상(통산 포함) / false = 비과세(통산 제외)
+  const TAXABLE = {
+    "dom_stock:gain": false,
+    "dom_stock:dividend": true,
+    "dom_eq_etf:gain": false,
+    "dom_eq_etf:distribution": true,
+    "other_etf:gain": true,
+    "other_etf:distribution": true,
+    "dom_bond:gain": false,
+    "dom_bond:interest": true,
+    "deposit:interest": true,
+  };
+
+  let rowId = 0;
+  let exemptLimit = 2000000;
+
+  const rowsBody = document.getElementById("rowsBody");
+  const rowCount = document.getElementById("rowCount");
+
+  function incomeOptions(assetType, selected){
+    return ASSET_TYPES[assetType].incomes.map(inc =>
+      `<option value="${inc}" ${inc===selected?'selected':''}>${INCOME_LABELS[inc]}</option>`
+    ).join("");
+  }
+
+  function assetOptions(selected){
+    return Object.entries(ASSET_TYPES).map(([key, v]) =>
+      `<option value="${key}" ${key===selected?'selected':''}>${v.label}</option>`
+    ).join("");
+  }
+
+  function addRow(preset){
+    const id = "row_" + (rowId++);
+    const asset = (preset && preset.asset) || "dom_stock";
+    const income = (preset && preset.income) || ASSET_TYPES[asset].incomes[0];
+    const name = (preset && preset.name) || "";
+    const amount = (preset && preset.amount !== undefined) ? preset.amount : "";
+
+    const tr = document.createElement("tr");
+    tr.id = id;
+    tr.innerHTML = `
+      <td><input type="text" class="f-name" placeholder="예: KODEX 은선물(H)" value="${name}"></td>
+      <td><select class="f-asset">${assetOptions(asset)}</select></td>
+      <td><select class="f-income">${incomeOptions(asset, income)}</select></td>
+      <td><input type="number" class="f-amount" placeholder="-3000000" value="${amount}"></td>
+      <td><span class="badge" id="badge_${id}"></span></td>
+      <td><button class="del-btn" title="삭제">✕</button></td>
+    `;
+    rowsBody.appendChild(tr);
+
+    const assetSel = tr.querySelector(".f-asset");
+    const incomeSel = tr.querySelector(".f-income");
+    const amountInput = tr.querySelector(".f-amount");
+    const delBtn = tr.querySelector(".del-btn");
+
+    assetSel.addEventListener("change", () => {
+      incomeSel.innerHTML = incomeOptions(assetSel.value, null);
+      updateBadge(tr);
+    });
+    incomeSel.addEventListener("change", () => updateBadge(tr));
+    amountInput.addEventListener("input", () => updateBadge(tr));
+    delBtn.addEventListener("click", () => { tr.remove(); refreshCount(); });
+
+    updateBadge(tr);
+    refreshCount();
+  }
+
+  function updateBadge(tr){
+    const asset = tr.querySelector(".f-asset").value;
+    const income = tr.querySelector(".f-income").value;
+    const key = asset + ":" + income;
+    const taxable = TAXABLE[key];
+    const el = tr.querySelector('[id^="badge_"]');
+    el.textContent = taxable ? "과세대상" : "비과세";
+    el.className = "badge " + (taxable ? "taxable" : "exempt");
+  }
+
+  function refreshCount(){
+    rowCount.textContent = rowsBody.children.length + "건";
+  }
+
+  function fmt(n){
+    const sign = n < 0 ? "-" : "";
+    return sign + Math.abs(Math.round(n)).toLocaleString("ko-KR") + "원";
+  }
+
+  // ---- 계좌유형 토글 ----
+  document.getElementById("accountToggle").addEventListener("click", (e) => {
+    const btn = e.target.closest("button");
+    if(!btn) return;
+    document.querySelectorAll("#accountToggle button").forEach(b => b.classList.remove("active"));
+    btn.classList.add("active");
+    exemptLimit = Number(btn.dataset.limit);
+  });
+
+  document.getElementById("addRowBtn").addEventListener("click", () => addRow());
+
+  document.getElementById("calcBtn").addEventListener("click", () => {
+    let taxableSum = 0;
+    const exemptItems = [];
+
+    [...rowsBody.children].forEach(tr => {
+      const name = tr.querySelector(".f-name").value || "(이름없음)";
+      const asset = tr.querySelector(".f-asset").value;
+      const income = tr.querySelector(".f-income").value;
+      const amount = Number(tr.querySelector(".f-amount").value) || 0;
+      const taxable = TAXABLE[asset + ":" + income];
+
+      if(taxable){
+        taxableSum += amount;
+      } else {
+        exemptItems.push(`<b>${name}</b> (${ASSET_TYPES[asset].label} · ${INCOME_LABELS[income]}) ${fmt(amount)} — 통산 제외`);
+      }
+    });
+
+    const netBeforeLimit = taxableSum;
+    const base = Math.max(0, netBeforeLimit - exemptLimit);
+    const tax = Math.round(base * 0.099);
+
+    document.getElementById("rNet").textContent = fmt(netBeforeLimit);
+    document.getElementById("rNet").className = "val" + (netBeforeLimit < 0 ? " neg" : "");
+    document.getElementById("rLimit").textContent = "-" + exemptLimit.toLocaleString("ko-KR") + "원";
+    document.getElementById("rBase").textContent = fmt(base);
+    document.getElementById("rTax").textContent = fmt(tax);
+
+    document.getElementById("exemptList").innerHTML = exemptItems.length
+      ? "비과세 제외 항목<br>" + exemptItems.join("<br>")
+      : "";
+
+    const stamp = document.getElementById("stamp");
+    const stampText = document.getElementById("stampText");
+    const stampSub = document.getElementById("stampSub");
+
+    stamp.classList.remove("show");
+    void stamp.offsetWidth; // reflow to restart animation
+
+    if(tax === 0){
+      stamp.classList.add("exempt-stamp");
+      stampText.textContent = "비과세";
+      stampSub.textContent = "TAX FREE";
+    } else {
+      stamp.classList.remove("exempt-stamp");
+      stampText.textContent = fmt(tax);
+      stampSub.textContent = "9.9% 분리과세";
+    }
+    requestAnimationFrame(() => stamp.classList.add("show"));
+  });
+
+  // ---- 초기 예시 2건 (앞선 대화 예시: 은선물 손실 / 커버드콜 이익) ----
+  addRow({ name:"KODEX 은선물(H)", asset:"other_etf", income:"gain", amount:-3000000 });
+  addRow({ name:"RISE 미국AI밸류체인데일리고정커버드콜", asset:"other_etf", income:"gain", amount:7000000 });
+</script>
+</body>
+</html>

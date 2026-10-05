@@ -1,0 +1,597 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>배당 현금흐름 시뮬레이터 · 2026 기준</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+<style>
+  :root{
+    --navy:#0B2545; --navy-2:#13315C; --ink:#1B2433; --muted:#697586;
+    --line:#E2E8F2; --line-2:#EEF2F8; --bg:#F5F8FC; --surface:#FFFFFF;
+    --blue:#1E5EFF; --blue-soft:#E8EFFF; --blue-ink:#1542B8;
+    --pos:#0E8C5B; --pos-soft:#E5F6EE;
+    --neg:#C2410C; --neg-soft:#FCEEE6;
+    --warn:#B45309; --warn-soft:#FDF3E3;
+    --radius:14px; --shadow:0 1px 2px rgba(11,37,69,.04), 0 8px 24px rgba(11,37,69,.06);
+  }
+  *{box-sizing:border-box;}
+  html,body{margin:0;}
+  body{
+    font-family:'Pretendard',-apple-system,'Apple SD Gothic Neo','Malgun Gothic',sans-serif;
+    background:var(--bg); color:var(--ink); line-height:1.5;
+    -webkit-font-smoothing:antialiased; padding:0 0 64px;
+  }
+  .num{font-variant-numeric:tabular-nums; font-feature-settings:"tnum";}
+  .wrap{max-width:1060px; margin:0 auto; padding:0 20px;}
+
+  /* Header */
+  header{background:linear-gradient(160deg,var(--navy) 0%, var(--navy-2) 100%); color:#fff; padding:34px 0 30px; border-bottom:1px solid rgba(255,255,255,.06);}
+  .eyebrow{font-size:12px; letter-spacing:.14em; text-transform:uppercase; color:#9DB4D8; font-weight:600;}
+  header h1{margin:6px 0 8px; font-size:27px; font-weight:800; letter-spacing:-.02em;}
+  header p{margin:0; color:#B7C6E0; font-size:14px; max-width:640px;}
+  .yearbadge{display:inline-flex; align-items:center; gap:7px; margin-top:14px; font-size:12.5px; font-weight:600;
+    background:rgba(255,255,255,.1); border:1px solid rgba(255,255,255,.16); color:#DCE6F6; padding:5px 11px; border-radius:999px;}
+  .dot{width:6px; height:6px; border-radius:50%; background:#5EEAD4;}
+
+  section{margin-top:22px;}
+  .card{background:var(--surface); border:1px solid var(--line); border-radius:var(--radius); box-shadow:var(--shadow);}
+  .card-pad{padding:20px;}
+  .card-h{display:flex; align-items:baseline; justify-content:space-between; gap:12px; margin-bottom:16px;}
+  .card-h h2{font-size:15px; font-weight:700; margin:0; color:var(--navy); letter-spacing:-.01em;}
+  .card-h .hint{font-size:12px; color:var(--muted);}
+
+  /* Controls */
+  .ctl-grid{display:grid; grid-template-columns:repeat(auto-fit,minmax(190px,1fr)); gap:14px;}
+  .field{display:flex; flex-direction:column; gap:6px;}
+  .field label{font-size:12px; font-weight:600; color:var(--muted);}
+  .field .sub{font-size:11px; color:#9AA4B2; font-weight:400;}
+  input[type=text], input[type=number], select{
+    font-family:inherit; font-size:14px; color:var(--ink); background:#fff;
+    border:1px solid var(--line); border-radius:9px; padding:9px 11px; width:100%;
+    transition:border-color .15s, box-shadow .15s;
+  }
+  input:focus, select:focus{outline:none; border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-soft);}
+  .num-input{text-align:right; font-variant-numeric:tabular-nums;}
+
+  /* Account toggle */
+  .seg{display:inline-flex; background:var(--line-2); border:1px solid var(--line); border-radius:10px; padding:3px; gap:3px;}
+  .seg button{font-family:inherit; font-size:13px; font-weight:600; border:0; background:transparent; color:var(--muted);
+    padding:8px 16px; border-radius:7px; cursor:pointer; transition:all .15s;}
+  .seg button.on{background:#fff; color:var(--navy); box-shadow:0 1px 3px rgba(11,37,69,.12);}
+  .seg button:focus-visible{outline:2px solid var(--blue); outline-offset:1px;}
+
+  /* Holdings table */
+  .tbl-scroll{overflow-x:auto; margin:0 -4px;}
+  table{border-collapse:collapse; width:100%; min-width:660px;}
+  thead th{font-size:11.5px; font-weight:600; color:var(--muted); text-align:left; padding:0 8px 9px; white-space:nowrap; border-bottom:1px solid var(--line);}
+  thead th.r{text-align:right;}
+  tbody td{padding:7px 4px; vertical-align:middle;}
+  tbody tr+tr td{border-top:1px solid var(--line-2);}
+  td input, td select{padding:7px 9px; font-size:13px;}
+  .del{border:0; background:transparent; color:#B0B9C6; cursor:pointer; font-size:18px; line-height:1; padding:6px 8px; border-radius:7px;}
+  .del:hover{background:var(--neg-soft); color:var(--neg);}
+  .addrow{margin-top:12px; font-family:inherit; font-size:13px; font-weight:600; color:var(--blue-ink);
+    background:var(--blue-soft); border:1px dashed #B9CCF7; border-radius:9px; padding:9px 14px; cursor:pointer;}
+  .addrow:hover{background:#DCE7FF;}
+
+  /* Summary cards */
+  .sum-grid{display:grid; grid-template-columns:repeat(3,1fr); gap:14px;}
+  .stat{padding:18px; border-radius:12px; border:1px solid var(--line); background:#fff;}
+  .stat .k{font-size:12px; color:var(--muted); font-weight:600;}
+  .stat .v{font-size:25px; font-weight:800; letter-spacing:-.02em; margin-top:7px; color:var(--navy);}
+  .stat .v small{font-size:14px; font-weight:600; color:var(--muted); margin-left:2px;}
+  .stat.accent{background:linear-gradient(160deg,#F3F8FF,#E9F1FF); border-color:#CFE0FF;}
+  .stat.accent .v{color:var(--blue-ink);}
+  .stat .sub{font-size:12px; color:var(--muted); margin-top:6px;}
+  .stat .sub.pos{color:var(--pos);} .stat .sub.neg{color:var(--neg);}
+
+  /* Monthly chart */
+  .months{display:grid; grid-template-columns:repeat(12,1fr); gap:6px; align-items:end; height:170px; margin-top:6px;}
+  .mcol{display:flex; flex-direction:column; align-items:center; justify-content:flex-end; height:100%; gap:6px;}
+  .bar-wrap{width:100%; height:100%; display:flex; align-items:flex-end; justify-content:center;}
+  .bar{width:62%; max-width:26px; background:linear-gradient(180deg,#3D74FF,#1E5EFF); border-radius:5px 5px 2px 2px; min-height:2px; position:relative; transition:height .3s ease;}
+  .bar .net{position:absolute; left:0; right:0; bottom:0; background:rgba(11,37,69,.22); border-radius:0 0 2px 2px;}
+  .mlabel{font-size:11px; color:var(--muted); font-weight:600;}
+  .mval{font-size:10px; color:var(--navy); font-variant-numeric:tabular-nums; height:13px; font-weight:600;}
+  .legend{display:flex; gap:16px; font-size:12px; color:var(--muted); margin-top:14px;}
+  .legend span{display:inline-flex; align-items:center; gap:6px;}
+  .sw{width:11px; height:11px; border-radius:3px;}
+
+  /* Breakdown */
+  .break{display:grid; grid-template-columns:1fr 1fr; gap:0;}
+  .break .col{padding:4px 0;}
+  .ln{display:flex; align-items:center; justify-content:space-between; padding:11px 16px; font-size:13.5px;}
+  .ln+.ln{border-top:1px solid var(--line-2);}
+  .ln .lbl{color:var(--ink); display:flex; align-items:center; gap:8px;}
+  .ln .lbl small{color:var(--muted); font-weight:400; font-size:11.5px;}
+  .ln .amt{font-variant-numeric:tabular-nums; font-weight:600;}
+  .ln.minus .amt{color:var(--neg);}
+  .ln.total{background:var(--blue-soft); border-radius:10px; margin-top:8px;}
+  .ln.total .lbl{font-weight:700; color:var(--navy);}
+  .ln.total .amt{font-weight:800; color:var(--blue-ink); font-size:15px;}
+  .ln.zero .amt{color:var(--muted);}
+
+  /* Compare */
+  .vs{display:grid; grid-template-columns:1fr auto 1fr; gap:16px; align-items:stretch;}
+  .vs-card{border:1px solid var(--line); border-radius:12px; padding:16px; background:#fff;}
+  .vs-card.on{border-color:var(--blue); box-shadow:0 0 0 3px var(--blue-soft);}
+  .vs-card .tag{font-size:11px; font-weight:700; letter-spacing:.04em; color:var(--muted); text-transform:uppercase;}
+  .vs-card .big{font-size:22px; font-weight:800; color:var(--navy); margin-top:8px; letter-spacing:-.02em;}
+  .vs-card ul{list-style:none; margin:12px 0 0; padding:0; font-size:12.5px; color:var(--muted);}
+  .vs-card li{display:flex; justify-content:space-between; padding:4px 0;}
+  .vs-card li .num{color:var(--ink); font-weight:600;}
+  .vs-mid{display:flex; align-items:center; justify-content:center; font-size:13px; font-weight:700; color:var(--muted);}
+
+  /* Flags */
+  .flags{display:flex; flex-direction:column; gap:9px; margin-top:4px;}
+  .flag{display:flex; gap:11px; align-items:flex-start; padding:12px 14px; border-radius:11px; font-size:13px; line-height:1.45;}
+  .flag .ic{font-size:15px; line-height:1.3;}
+  .flag.ok{background:var(--pos-soft); color:#0A5C3C;}
+  .flag.warn{background:var(--warn-soft); color:#7C4708;}
+  .flag.info{background:var(--blue-soft); color:var(--blue-ink);}
+  .flag b{font-weight:700;}
+
+  footer{margin-top:26px; font-size:11.5px; color:#90A0B5; line-height:1.7;}
+  footer b{color:var(--muted);}
+  .pillrow{display:flex; flex-wrap:wrap; gap:7px; margin-top:8px;}
+  .pill{font-size:11px; font-weight:600; color:var(--muted); background:#fff; border:1px solid var(--line); border-radius:999px; padding:4px 10px;}
+
+  @media (max-width:720px){
+    .sum-grid{grid-template-columns:1fr;}
+    .break{grid-template-columns:1fr;}
+    .vs{grid-template-columns:1fr;}
+    .vs-mid{padding:4px 0;}
+    .months{height:130px; gap:3px;}
+    .mval{display:none;}
+    header h1{font-size:22px;}
+  }
+</style>
+</head>
+<body>
+<a class="portal-home" href="../index.html" style="display:flex;align-items:center;padding:10px 20px;background:#16213A;color:#E8ECF4;font:600 13px/1.4 -apple-system,'Apple SD Gothic Neo',sans-serif;text-decoration:none">← 잘란부장 연금투자 홈</a>
+<header>
+  <div class="wrap">
+    <div class="eyebrow">월 배당 현금흐름 시뮬레이터</div>
+    <h1>배당 종목 → 세후 실수령 · 건보료 영향까지</h1>
+    <p>종목을 입력하면 월별 배당 캘린더, 배당소득세·금융소득종합과세·지역가입자 건강보험료를 반영한 세후 현금흐름을 계산합니다. 일반 과세계좌와 연금계좌(IRP·연금저축)를 토글로 비교할 수 있습니다.</p>
+    <div class="yearbadge"><span class="dot"></span>2026년 세율·건보료율 기준 · 지역가입자</div>
+  </div>
+</header>
+
+<div class="wrap">
+
+  <!-- INPUT -->
+  <section class="card card-pad">
+    <div class="card-h">
+      <h2>1 · 기준 설정</h2>
+      <span class="hint">계좌 유형을 바꾸면 아래 결과가 즉시 다시 계산됩니다</span>
+    </div>
+    <div class="ctl-grid">
+      <div class="field">
+        <label>계좌 유형</label>
+        <div class="seg" id="acctToggle" role="tablist">
+          <button class="on" data-acct="general" role="tab">일반 과세계좌</button>
+          <button data-acct="pension" role="tab">연금계좌(IRP·연금저축)</button>
+        </div>
+      </div>
+      <div class="field">
+        <label>다른 금융소득 <span class="sub">(이 포트폴리오 외 연간 이자·배당, 원)</span></label>
+        <input type="number" id="otherFin" class="num-input" value="0" min="0" step="1000000">
+      </div>
+      <div class="field" id="marginalField">
+        <label>종합과세 한계세율 <span class="sub">(지방세 포함, 초과분 적용)</span></label>
+        <select id="marginal">
+          <option value="0.066">6.6%</option>
+          <option value="0.165">16.5%</option>
+          <option value="0.264" selected>26.4%</option>
+          <option value="0.385">38.5%</option>
+          <option value="0.418">41.8%</option>
+          <option value="0.462">46.2%</option>
+          <option value="0.495">49.5%</option>
+        </select>
+      </div>
+      <div class="field" id="ageField" style="display:none;">
+        <label>연금 수령 시 나이 <span class="sub">(연금소득세율 결정)</span></label>
+        <input type="number" id="age" class="num-input" value="65" min="55" max="100">
+      </div>
+    </div>
+  </section>
+
+  <!-- HOLDINGS -->
+  <section class="card card-pad">
+    <div class="card-h">
+      <h2>2 · 보유 종목</h2>
+      <span class="hint">해외 종목은 원화 환산 기준 · 주당 분배금은 1회(월) 지급액을 입력하세요</span>
+    </div>
+    <div class="tbl-scroll">
+      <table>
+        <thead>
+          <tr>
+            <th style="min-width:130px;">종목명</th>
+            <th style="width:96px;">국내/해외</th>
+            <th class="r" style="width:90px;">보유수량</th>
+            <th class="r" style="width:120px;">주당 분배금(1회, 원)</th>
+            <th style="width:96px;">배당주기</th>
+            <th style="width:92px;">지급 시작월</th>
+            <th class="r" style="width:112px;">과세대상비율<span class="sub" style="display:block;font-weight:400;">(배당소득 %)</span></th>
+            <th class="r" style="width:110px;">연 분배금총액</th>
+            <th style="width:32px;"></th>
+          </tr>
+        </thead>
+        <tbody id="rows"></tbody>
+      </table>
+    </div>
+    <button class="addrow" id="addRow">＋ 종목 추가</button>
+    <p style="font-size:11.5px; color:var(--muted); margin:10px 2px 0; line-height:1.6;">
+      · 국내 지수 기반 커버드콜 ETF는 분배금 중 옵션프리미엄·매매차익 부분이 비과세이므로, 과세대상비율을 100%보다 낮게(운용사가 분배 시 공시하는 배당소득 비율 참고) 입력하세요.<br>
+      · 해외지수 추종 ETF(국내 상장 포함)는 분배금과 매매차익 모두 과세 대상이라 보통 100%을 유지하면 됩니다.
+    </p>
+  </section>
+
+  <!-- SUMMARY -->
+  <section class="sum-grid" id="summary"></section>
+
+  <!-- MONTHLY -->
+  <section class="card card-pad">
+    <div class="card-h">
+      <h2>3 · 월별 배당 캘린더</h2>
+      <span class="hint" id="calHint"></span>
+    </div>
+    <div class="months" id="months"></div>
+    <div class="legend">
+      <span><span class="sw" style="background:linear-gradient(180deg,#3D74FF,#1E5EFF);"></span>세전 배당</span>
+      <span><span class="sw" style="background:#A9B6CC;"></span>원천징수 차감분</span>
+      <span style="margin-left:auto; color:var(--muted);">막대 아래 진한 부분 = 세금</span>
+    </div>
+  </section>
+
+  <!-- BREAKDOWN -->
+  <section class="card card-pad">
+    <div class="card-h">
+      <h2>4 · 세금·건보료 상세</h2>
+      <span class="hint" id="breakHint"></span>
+    </div>
+    <div id="breakdown"></div>
+  </section>
+
+  <!-- FLAGS -->
+  <section class="card card-pad">
+    <div class="card-h"><h2>5 · 판정 및 주의 신호</h2></div>
+    <div class="flags" id="flags"></div>
+  </section>
+
+  <!-- COMPARE -->
+  <section class="card card-pad">
+    <div class="card-h">
+      <h2>6 · 일반계좌 vs 연금계좌 비교</h2>
+      <span class="hint">같은 연 배당총액 기준</span>
+    </div>
+    <div class="vs" id="compare"></div>
+  </section>
+
+  <footer>
+    <b>계산 가정 (2026년 기준 · 단순화 모델)</b>
+    <div class="pillrow">
+      <span class="pill">국내 배당세 15.4%</span>
+      <span class="pill">해외(미국) 현지원천 15%</span>
+      <span class="pill">금융소득종합과세 2,000만원</span>
+      <span class="pill">건보료 산입 문턱 1,000만원</span>
+      <span class="pill">건강보험료율 7.19%</span>
+      <span class="pill">장기요양 12.95%</span>
+      <span class="pill">사적연금 분리과세 1,500만원</span>
+      <span class="pill">초과분 16.5%</span>
+    </div>
+    <p style="margin-top:12px;">
+      · 연금계좌는 <b>운용 단계의 배당이 과세이연</b>되어 즉시 받는 현금흐름은 0이며, 표의 "연금 수령 가정"은 같은 금액을 연금으로 인출할 때의 세부담을 보여줍니다. 사적연금 연금소득에는 건강보험료가 부과되지 않습니다.<br>
+      · 지역가입자 건보료는 실제로 세대 단위 소득·재산을 합산해 산정됩니다. 여기서는 <b>이 배당 포트폴리오로 인한 한계(추가) 보험료</b>만 근사합니다.<br>
+      · 종합과세 추가세액은 초과분에 한계세율을 적용한 근사치이며, 실제는 원천징수세액과 비교한 비교과세로 결정됩니다. 정확한 신고·납부는 세무 전문가와 상담하세요.<br>
+      · 커버드콜 등 일부 ETF는 분배금 중 옵션프리미엄·매매차익 부분이 비과세되며, 실제로는 "분배금과 과표기준가 증가분 중 작은 금액"에만 과세하는 보유기간과세 방식이 적용됩니다. 이 시뮬레이터는 이를 종목별 <b>과세대상비율(%)</b>로 단순화해 근사한 것이므로, 정확한 비율은 운용사가 분배 시 공시하는 배당소득 비율을 확인해 입력하세요.
+    </p>
+  </footer>
+</div>
+
+<script>
+/* ─────────────────────────────────────────────
+   CONFIG — 연도별로 이 객체만 갱신하면 됩니다
+   ───────────────────────────────────────────── */
+const CONFIG = {
+  year: 2026,
+  domesticDividendTax: 0.154,   // 국내 배당 원천징수
+  foreignDividendTax:  0.15,    // 해외(미국) 현지 원천징수
+  finCompThreshold:    20000000,// 금융소득종합과세 기준
+  nhisIncludeThreshold:10000000,// 지역가입자 금융소득 건보료 산입 문턱
+  nhisRate:            0.0719,  // 건강보험료율
+  ltcRate:             0.1295,  // 장기요양보험료 = 건보료 × 12.95%
+  pensionSepLimit:     15000000,// 사적연금 분리과세 한도
+  pensionSepOverRate:  0.165,   // 한도 초과 시 분리과세
+  pensionTax: { under70:0.055, age70to79:0.044, age80plus:0.033 }
+};
+
+const FREQ = { monthly:{n:12,label:'월'}, quarterly:{n:4,label:'분기'}, semi:{n:2,label:'반기'}, annual:{n:1,label:'연'} };
+
+/* 초기 샘플 종목 */
+let holdings = [
+  { name:'국내 커버드콜 ETF', foreign:false, qty:500,  dps:180, freq:'monthly', start:1, taxableRatio:40 },
+  { name:'국내 리츠',         foreign:false, qty:1000, dps:60,  freq:'monthly', start:1, taxableRatio:100 },
+  { name:'미국 배당주',       foreign:true,  qty:50,   dps:1500,freq:'monthly', start:1, taxableRatio:100 },
+];
+
+let state = { acct:'general', otherFin:0, marginal:0.264, age:65 };
+
+const won = n => Math.round(n).toLocaleString('ko-KR') + '원';
+const wonShort = n => {
+  n = Math.round(n);
+  if (Math.abs(n) >= 10000) return (n/10000).toLocaleString('ko-KR',{maximumFractionDigits:0}) + '만';
+  return n.toLocaleString('ko-KR');
+};
+
+/* ── 계산 ───────────────────────── */
+function holdingPer(h){ return (Number(h.qty)||0) * (Number(h.dps)||0); } // 1회 지급액(주당 분배금 × 수량)
+function holdingAnnual(h){ const f = FREQ[h.freq] || FREQ.monthly; return holdingPer(h) * f.n; } // 연 분배금총액(현금흐름) = 1회 지급액 × 연간 지급횟수
+function taxableRatioOf(h){ const r = Number(h.taxableRatio); return isFinite(r) ? Math.min(100,Math.max(0,r)) : 100; } // 과세대상 배당소득 비율(%) — 커버드콜 등 옵션프리미엄/매매차익 비과세분 제외
+function holdingTaxable(h){ return holdingAnnual(h) * taxableRatioOf(h)/100; } // 실제 과세대상(배당소득) 금액
+function grossTotal(){ return holdings.reduce((s,h)=>s+holdingAnnual(h),0); } // 실제 수령 현금흐름 총액(비과세분 포함)
+
+function monthlyGross(){
+  const m = Array(12).fill(0);
+  holdings.forEach(h=>{
+    const per = holdingPer(h); // 1회 지급액 (이미 연배당이 아니라 회당 금액이므로 나누지 않음)
+    const f = FREQ[h.freq];
+    const gap = 12 / f.n;
+    for (let i=0;i<f.n;i++){
+      const monthIdx = ((Number(h.start)-1) + i*gap) % 12;
+      m[Math.round(monthIdx)] += per;
+    }
+  });
+  return m;
+}
+
+function blendedWithholdRate(){
+  const g = calcGeneral();
+  return g.gross>0 ? g.withhold/g.gross : 0;
+}
+
+function calcGeneral(){
+  let dom=0, for_=0, domTax=0, forTax=0;
+  holdings.forEach(h=>{
+    const gross = holdingAnnual(h);
+    const taxable = holdingTaxable(h);
+    if (h.foreign){ for_+=gross; forTax+=taxable; } else { dom+=gross; domTax+=taxable; }
+  });
+  const gross = dom+for_;                 // 실제 수령 현금흐름(분배금 총액, 비과세분 포함)
+  const taxableGross = domTax+forTax;      // 과세대상 배당소득 합계
+  const withhold = domTax*CONFIG.domesticDividendTax + forTax*CONFIG.foreignDividendTax;
+  const totalFin = taxableGross + state.otherFin; // 종합과세·건보료 판정은 과세대상 배당소득 기준
+
+  // 금융소득종합과세
+  let compExtra = 0, comp = false;
+  if (totalFin > CONFIG.finCompThreshold){
+    comp = true;
+    const over = totalFin - CONFIG.finCompThreshold;
+    compExtra = Math.max(0, over * (state.marginal - 0.154));
+  }
+  // 지역가입자 건보료: 과세대상 금융소득 1,000만원 초과 시 산입 (전액 산입 기준, 산정액은 과세대상 배당소득 기준)
+  let nhis = 0, nhisIn = false;
+  if (totalFin > CONFIG.nhisIncludeThreshold){
+    nhisIn = true;
+    nhis = taxableGross * CONFIG.nhisRate * (1 + CONFIG.ltcRate);
+  }
+  const net = gross - withhold - compExtra - nhis;
+  return { gross, taxableGross, dom, for_, withhold, compExtra, comp, nhis, nhisIn, net, totalFin };
+}
+
+function calcPension(){
+  const gross = grossTotal();
+  let rate, rateLabel;
+  if (state.age>=80){ rate=CONFIG.pensionTax.age80plus; rateLabel='80세↑'; }
+  else if (state.age>=70){ rate=CONFIG.pensionTax.age70to79; rateLabel='70~79세'; }
+  else { rate=CONFIG.pensionTax.under70; rateLabel='70세 미만'; }
+
+  let tax, mode, over=false;
+  if (gross <= CONFIG.pensionSepLimit){
+    tax = gross*rate; mode='저율 연금소득세 '+(rate*100).toFixed(1)+'%';
+  } else {
+    over=true;
+    tax = gross*CONFIG.pensionSepOverRate; mode='16.5% 분리과세 (또는 종합과세 선택)';
+  }
+  return { gross, tax, rate, rateLabel, mode, over, net: gross - tax, accumCash:0 };
+}
+
+/* ── 렌더 ───────────────────────── */
+function renderRows(){
+  const tb = document.getElementById('rows');
+  tb.innerHTML = '';
+  holdings.forEach((h,i)=>{
+    const tr = document.createElement('tr');
+    tr.innerHTML = `
+      <td><input type="text" value="${h.name}" data-i="${i}" data-k="name"></td>
+      <td><select data-i="${i}" data-k="foreign">
+        <option value="false" ${!h.foreign?'selected':''}>국내</option>
+        <option value="true" ${h.foreign?'selected':''}>해외</option>
+      </select></td>
+      <td><input type="number" class="num-input" value="${h.qty}" min="0" data-i="${i}" data-k="qty"></td>
+      <td><input type="number" class="num-input" value="${h.dps}" min="0" data-i="${i}" data-k="dps"></td>
+      <td><select data-i="${i}" data-k="freq">
+        <option value="monthly" ${h.freq==='monthly'?'selected':''}>월</option>
+        <option value="quarterly" ${h.freq==='quarterly'?'selected':''}>분기</option>
+        <option value="semi" ${h.freq==='semi'?'selected':''}>반기</option>
+        <option value="annual" ${h.freq==='annual'?'selected':''}>연</option>
+      </select></td>
+      <td><select data-i="${i}" data-k="start">
+        ${Array.from({length:12},(_,m)=>`<option value="${m+1}" ${h.start==m+1?'selected':''}>${m+1}월</option>`).join('')}
+      </select></td>
+      <td><input type="number" class="num-input" value="${h.taxableRatio ?? 100}" min="0" max="100" step="5" data-i="${i}" data-k="taxableRatio"></td>
+      <td class="num" style="text-align:right; font-weight:600; padding-right:8px;">${wonShort(holdingAnnual(h))}원</td>
+      <td><button class="del" data-del="${i}" aria-label="삭제">×</button></td>`;
+    tb.appendChild(tr);
+  });
+}
+
+function renderSummary(){
+  const g = calcGeneral(), p = calcPension();
+  const gross = g.gross;
+  const isGen = state.acct==='general';
+  const active = isGen ? g : p;
+  const net = isGen ? g.net : p.net;
+  const cut = gross>0 ? (1 - net/gross)*100 : 0;
+
+  let netLabel = isGen ? '연 세후 실수령' : '연금 수령 가정 · 세후';
+  let netSub = isGen
+    ? `월 평균 ${wonShort(net/12)}원`
+    : `운용 단계 실수령은 0원 (과세이연·재투자)`;
+
+  document.getElementById('summary').innerHTML = `
+    <div class="stat"><div class="k">연 분배금총액 (세전, 현금흐름)</div>
+      <div class="v num">${wonShort(gross)}<small>원</small></div>
+      <div class="sub">월 평균 ${wonShort(gross/12)}원 · 과세대상 ${wonShort(g.taxableGross)}원</div></div>
+    <div class="stat accent"><div class="k">${netLabel}</div>
+      <div class="v num">${wonShort(net)}<small>원</small></div>
+      <div class="sub">${netSub}</div></div>
+    <div class="stat"><div class="k">실효 차감률</div>
+      <div class="v num">${cut.toFixed(1)}<small>%</small></div>
+      <div class="sub ${cut>20?'neg':'pos'}">세전 대비 ${cut>20?'부담 큼':'양호'}</div></div>`;
+}
+
+function renderMonths(){
+  const m = monthlyGross();
+  const max = Math.max(...m, 1);
+  const wRate = blendedWithholdRate();
+  const isGen = state.acct==='general';
+  const cont = document.getElementById('months');
+  cont.innerHTML = m.map((v,i)=>{
+    const h = (v/max)*100;
+    const netH = isGen ? (1 - wRate) : 0; // 연금계좌 운용단계 현금흐름 0 → 막대는 세전 표시만
+    const taxPortion = isGen ? wRate*100 : 0;
+    return `<div class="mcol">
+      <div class="mval">${v>0?wonShort(v):''}</div>
+      <div class="bar-wrap"><div class="bar" style="height:${h}%;">
+        ${taxPortion>0?`<div class="net" style="height:${taxPortion}%;"></div>`:''}
+      </div></div>
+      <div class="mlabel">${i+1}</div>
+    </div>`;
+  }).join('');
+  document.getElementById('calHint').textContent = isGen
+    ? '진한 부분 = 원천징수 배당세' : '연금계좌 운용 단계: 배당은 계좌 내 재투자(과세이연)';
+}
+
+function renderBreakdown(){
+  const isGen = state.acct==='general';
+  const el = document.getElementById('breakdown');
+  if (isGen){
+    const g = calcGeneral();
+    el.innerHTML = `
+      <div class="ln"><span class="lbl">연 분배금총액 <small>세전, 실제 수령 현금흐름</small></span><span class="amt num">${won(g.gross)}</span></div>
+      <div class="ln zero"><span class="lbl">└ 과세대상 배당소득 <small>비과세(옵션프리미엄·매매차익) 제외</small></span><span class="amt num">${won(g.taxableGross)}</span></div>
+      <div class="ln minus"><span class="lbl">배당소득세 원천징수 <small>국내 15.4% · 해외 15% · 과세대상분에만 부과</small></span><span class="amt num">-${won(g.withhold)}</span></div>
+      <div class="ln minus ${g.compExtra<=0?'zero':''}"><span class="lbl">금융소득종합과세 추가 <small>${g.comp?'과세대상 배당소득 기준 2,000만원 초과분':'해당 없음'}</small></span><span class="amt num">${g.compExtra>0?'-'+won(g.compExtra):won(0)}</span></div>
+      <div class="ln minus ${g.nhis<=0?'zero':''}"><span class="lbl">지역가입자 건보료 <small>${g.nhisIn?'과세대상 배당소득 1,000만원 초과 산입':'1,000만원 이하 · 미산입'}</small></span><span class="amt num">${g.nhis>0?'-'+won(g.nhis):won(0)}</span></div>
+      <div class="ln total"><span class="lbl">연 세후 실수령</span><span class="amt num">${won(g.net)}</span></div>`;
+    document.getElementById('breakHint').textContent = `다른 금융소득 ${wonShort(state.otherFin)}원 포함 판정 · 과세대상 배당소득 기준`;
+  } else {
+    const p = calcPension();
+    el.innerHTML = `
+      <div class="ln"><span class="lbl">연 배당총액 (계좌 내, 세전)</span><span class="amt num">${won(p.gross)}</span></div>
+      <div class="ln zero"><span class="lbl">운용 단계 세금 <small>과세이연</small></span><span class="amt num">${won(0)}</span></div>
+      <div class="ln zero"><span class="lbl">운용 단계 건보료 <small>사적연금 미부과</small></span><span class="amt num">${won(0)}</span></div>
+      <div class="ln" style="border-top:1px dashed var(--line);"><span class="lbl" style="color:var(--muted); font-size:12px;">― 같은 금액을 연금으로 수령한다고 가정 ―</span><span></span></div>
+      <div class="ln minus"><span class="lbl">연금소득세 <small>${p.mode} · ${p.rateLabel}</small></span><span class="amt num">-${won(p.tax)}</span></div>
+      <div class="ln zero"><span class="lbl">건강보험료 <small>사적연금 연금소득 미부과</small></span><span class="amt num">${won(0)}</span></div>
+      <div class="ln total"><span class="lbl">연금 수령 가정 · 세후</span><span class="amt num">${won(p.net)}</span></div>`;
+    document.getElementById('breakHint').textContent = `수령 시 나이 ${state.age}세 기준`;
+  }
+}
+
+function renderFlags(){
+  const g = calcGeneral(), p = calcPension();
+  const fl = [];
+  // 금융소득종합과세
+  if (g.comp) fl.push(['warn','⚠','종합과세 대상', `이 포트폴리오 과세대상 배당소득 + 다른 금융소득 합계가 <b>${wonShort(g.totalFin)}원</b>으로 2,000만원을 넘어 초과분이 종합과세됩니다. (비과세 처리된 옵션프리미엄·매매차익은 제외)`]);
+  else fl.push(['ok','✓','금융소득종합과세 비대상', `과세대상 금융소득 합계 ${wonShort(g.totalFin)}원으로 2,000만원 이하, 원천징수로 분리과세 종결됩니다.`]);
+  // 건보료
+  if (g.nhisIn) fl.push(['warn','⚠','건보료 산입', `과세대상 배당소득이 1,000만원을 넘어 지역가입자 건보료 산정에 포함됩니다. 이 배당 기준 연 약 <b>${wonShort(g.nhis)}원</b> 추가.`]);
+  else fl.push(['ok','✓','건보료 미산입', `과세대상 배당소득 1,000만원 이하라 배당이 지역가입자 건보료에 반영되지 않습니다. 1,000만원을 1원이라도 넘으면 전액 산입되는 점에 주의하세요.`]);
+  // 연금 한도
+  if (p.over) fl.push(['warn','⚠','연금 분리과세 한도 초과', `연 ${wonShort(p.gross)}원은 사적연금 1,500만원 한도를 초과합니다. 16.5% 분리과세 또는 종합과세를 선택해야 하니, 수령액을 1,500만원 이하로 나눠 받으면 3.3~5.5% 저율이 유지됩니다.`]);
+  else fl.push(['info','ℹ','연금 저율 구간', `연금으로 받을 경우 1,500만원 한도 내라 ${p.rateLabel} 기준 ${(p.rate*100).toFixed(1)}% 저율 연금소득세만 적용됩니다.`]);
+
+  document.getElementById('flags').innerHTML = fl.map(f=>
+    `<div class="flag ${f[0]}"><span class="ic">${f[1]}</span><div><b>${f[2]}</b> · ${f[3]}</div></div>`).join('');
+}
+
+function renderCompare(){
+  const g = calcGeneral(), p = calcPension();
+  const better = g.net >= p.net ? 'general' : 'pension';
+  const diff = Math.abs(g.net - p.net);
+  document.getElementById('compare').innerHTML = `
+    <div class="vs-card ${state.acct==='general'?'on':''}">
+      <div class="tag">일반 과세계좌</div>
+      <div class="big num">${wonShort(g.net)}원</div>
+      <ul>
+        <li><span>배당세</span><span class="num">-${wonShort(g.withhold)}원</span></li>
+        <li><span>종합과세 추가</span><span class="num">-${wonShort(g.compExtra)}원</span></li>
+        <li><span>지역 건보료</span><span class="num">-${wonShort(g.nhis)}원</span></li>
+      </ul>
+    </div>
+    <div class="vs-mid">vs</div>
+    <div class="vs-card ${state.acct==='pension'?'on':''}">
+      <div class="tag">연금계좌 (수령 가정)</div>
+      <div class="big num">${wonShort(p.net)}원</div>
+      <ul>
+        <li><span>연금소득세</span><span class="num">-${wonShort(p.tax)}원</span></li>
+        <li><span>건보료</span><span class="num">0원</span></li>
+        <li><span>운용 중 과세</span><span class="num">이연</span></li>
+      </ul>
+    </div>`;
+}
+
+function renderAll(){
+  renderSummary(); renderMonths(); renderBreakdown(); renderFlags(); renderCompare();
+}
+
+/* ── 이벤트 ───────────────────────── */
+document.getElementById('rows').addEventListener('input', e=>{
+  const i = e.target.dataset.i, k = e.target.dataset.k;
+  if (i===undefined) return;
+  let v = e.target.value;
+  if (k==='foreign') v = (v==='true');
+  else if (k==='qty'||k==='dps'||k==='start'||k==='taxableRatio') v = Number(v);
+  holdings[i][k] = v;
+  if (k==='qty'||k==='dps') { // 연 분배금총액 셀만 갱신 (7번째 컬럼: 과세대상비율 칸이 추가되어 인덱스 +1)
+    const cell = e.target.closest('tr').children[7];
+    cell.textContent = wonShort(holdingAnnual(holdings[i]))+'원';
+  }
+  renderAll();
+});
+document.getElementById('rows').addEventListener('change', e=>{
+  // select 변경 시 행 재렌더 불필요, 캘린더만 영향
+  if (['foreign','freq','start'].includes(e.target.dataset.k)) renderAll();
+});
+document.getElementById('rows').addEventListener('click', e=>{
+  if (e.target.dataset.del!==undefined){
+    holdings.splice(Number(e.target.dataset.del),1);
+    renderRows(); renderAll();
+  }
+});
+document.getElementById('addRow').addEventListener('click', ()=>{
+  holdings.push({name:'새 종목', foreign:false, qty:0, dps:0, freq:'monthly', start:1, taxableRatio:100});
+  renderRows(); renderAll();
+});
+document.getElementById('acctToggle').addEventListener('click', e=>{
+  const a = e.target.dataset.acct; if(!a) return;
+  state.acct = a;
+  document.querySelectorAll('#acctToggle button').forEach(b=>b.classList.toggle('on', b.dataset.acct===a));
+  document.getElementById('marginalField').style.display = a==='general'?'':'none';
+  document.getElementById('ageField').style.display = a==='pension'?'':'none';
+  renderAll();
+});
+document.getElementById('otherFin').addEventListener('input', e=>{ state.otherFin=Number(e.target.value)||0; renderAll(); });
+document.getElementById('marginal').addEventListener('change', e=>{ state.marginal=Number(e.target.value); renderAll(); });
+document.getElementById('age').addEventListener('input', e=>{ state.age=Number(e.target.value)||65; renderAll(); });
+
+/* init */
+renderRows();
+renderAll();
+</script>
+</body>
+</html>
