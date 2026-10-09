@@ -4,146 +4,310 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <title>잘란부장 연금투자</title>
-<meta name="description" content="ISA 세금, 배당 현금흐름, 연금 인출 세금을 직접 계산해 보는 잘란부장의 연금투자 시뮬레이터 모음">
+<meta name="description" content="ISA 세금, 연금계좌 리밸런싱, 배당 현금흐름, 연금 인출 세금을 내 숫자로 계산해 보는 잘란부장의 연금투자 시뮬레이터 모음">
 <meta property="og:title" content="잘란부장 연금투자">
-<meta property="og:description" content="모으고, 배당으로 받고, 연금으로 꺼내 쓰는 단계마다 세금을 계산하는 시뮬레이터 모음">
+<meta property="og:description" content="모으고, 굴리고, 배당으로 받고, 꺼내 쓰는 단계마다 세금을 계산하는 시뮬레이터 모음">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%232F5D50'/%3E%3Cpath d='M8 22l6-6 4 4 7-9' stroke='%23fff' stroke-width='3' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
 <style>
-  /* Layout: 좁은 단일 칼럼 · 위에서 아래로 '모으기 → 받기 → 꺼내 쓰기' 생애 순서로 도구를 배치 */
+  /* Layout: 상단 메뉴 → 히어로(제목 + 업데이트 카드) → 기준선 → 질문형 시뮬레이터 목록 + 상황별 가이드 → 업데이트 → 이용 안내 */
   :root{
-    --bg:#EEF1F5; --surface:#FFFFFF; --ink:#16213A; --muted:#5A6479; --line:#D9DFE8;
-    --accent:#2F5D50; --accent-soft:#E2EEEA; --gold:#9A7120;
+    --bg:#F4F6F8; --surface:#FFFFFF; --sunk:#EEF2F4; --ink:#16213A; --muted:#5A6479; --line:#DDE3EA;
+    --accent:#2F5D50; --accent-ink:#FFFFFF; --accent-soft:#E2EEEA;
+    --t-collect:#9A6A12; --t-collect-bg:#F6EDD9;
+    --t-grow:#2F5D50;   --t-grow-bg:#E2EEEA;
+    --t-div:#2C5B9A;    --t-div-bg:#E3ECF8;
+    --t-draw:#8A3F55;   --t-draw-bg:#F5E4EA;
     --font-body:"IBM Plex Sans KR",-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
     --font-num:"IBM Plex Mono",ui-monospace,Menlo,monospace;
   }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
-      --bg:#0E1420; --surface:#161F30; --ink:#E5EAF2; --muted:#9AA5BA; --line:#26324A;
-      --accent:#7CC2AC; --accent-soft:#1B3330; --gold:#D8B262; color-scheme:dark;
+      --bg:#0E1420; --surface:#161F30; --sunk:#121A28; --ink:#E5EAF2; --muted:#9AA5BA; --line:#26324A;
+      --accent:#7CC2AC; --accent-ink:#0E1420; --accent-soft:#1B3330;
+      --t-collect:#E2B865; --t-collect-bg:#33291A;
+      --t-grow:#7CC2AC;   --t-grow-bg:#1B3330;
+      --t-div:#8DB4EC;    --t-div-bg:#1C2A42;
+      --t-draw:#E39AB0;   --t-draw-bg:#3A2130;
+      color-scheme:dark;
     }
   }
   :root[data-theme="dark"]{
-    --bg:#0E1420; --surface:#161F30; --ink:#E5EAF2; --muted:#9AA5BA; --line:#26324A;
-    --accent:#7CC2AC; --accent-soft:#1B3330; --gold:#D8B262; color-scheme:dark;
+    --bg:#0E1420; --surface:#161F30; --sunk:#121A28; --ink:#E5EAF2; --muted:#9AA5BA; --line:#26324A;
+    --accent:#7CC2AC; --accent-ink:#0E1420; --accent-soft:#1B3330;
+    --t-collect:#E2B865; --t-collect-bg:#33291A;
+    --t-grow:#7CC2AC;   --t-grow-bg:#1B3330;
+    --t-div:#8DB4EC;    --t-div-bg:#1C2A42;
+    --t-draw:#E39AB0;   --t-draw-bg:#3A2130;
+    color-scheme:dark;
   }
   *{box-sizing:border-box}
-  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.6;
-    -webkit-font-smoothing:antialiased}
-  .page{max-width:880px;margin:0 auto;padding:56px 20px 72px;display:flex;flex-direction:column;gap:40px}
+  html{scroll-behavior:smooth;scroll-padding-top:72px}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.6;-webkit-font-smoothing:antialiased;word-break:keep-all;overflow-wrap:break-word}
+  a{color:inherit}
+  a:focus-visible,button:focus-visible{outline:3px solid var(--accent);outline-offset:2px;border-radius:6px}
+  .wrap{max-width:1080px;margin:0 auto;padding-inline:20px}
 
-  header{display:flex;flex-direction:column;gap:12px}
-  .owner{font-size:13px;font-weight:600;color:var(--accent);letter-spacing:.06em}
-  h1{font-size:clamp(30px,5vw,44px);font-weight:700;letter-spacing:-.03em;line-height:1.15;margin:0;text-wrap:balance}
-  .lede{margin:0;color:var(--muted);max-width:56ch;font-size:16px}
+  /* 상단 메뉴 */
+  .topbar{position:sticky;top:env(safe-area-inset-top,0px);z-index:10;background:color-mix(in srgb,var(--bg) 88%,transparent);
+    backdrop-filter:saturate(1.4) blur(10px);-webkit-backdrop-filter:saturate(1.4) blur(10px);border-bottom:1px solid var(--line)}
+  .topbar .wrap{display:flex;align-items:center;justify-content:space-between;gap:16px;height:60px}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:17px;letter-spacing:-.02em;text-decoration:none;white-space:nowrap}
+  .brand i{width:26px;height:26px;border-radius:7px;background:var(--accent);display:grid;place-items:center;flex:none}
+  .brand i svg{width:16px;height:16px}
+  nav.menu{display:flex;gap:4px;overflow-x:auto;scrollbar-width:none}
+  nav.menu::-webkit-scrollbar{display:none}
+  nav.menu a{font-size:14px;font-weight:500;color:var(--muted);text-decoration:none;padding:7px 11px;border-radius:7px;white-space:nowrap}
+  nav.menu a:hover{color:var(--ink);background:var(--sunk)}
 
-  /* 2026 기준선 */
-  .rules{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));border-top:1px solid var(--ink);border-bottom:1px solid var(--line)}
-  .rule{padding:14px 16px 14px 0;display:flex;flex-direction:column;gap:2px;min-width:0}
-  .rule + .rule{padding-left:16px;border-left:1px solid var(--line)}
-  .rule .v{font-family:var(--font-num);font-weight:600;font-size:20px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
+  /* 히어로 */
+  .hero{display:grid;grid-template-columns:minmax(0,1.15fr) minmax(0,1fr);gap:40px;align-items:center;padding-block:64px 48px}
+  .kicker{font-size:13px;font-weight:600;color:var(--accent);letter-spacing:.04em;margin:0 0 14px}
+  .hero h1{font-size:clamp(32px,5vw,48px);line-height:1.18;letter-spacing:-.035em;font-weight:700;margin:0 0 18px;text-wrap:balance}
+  .hero h1 em{font-style:normal;color:var(--accent)}
+  .hero p.lede{margin:0 0 28px;color:var(--muted);font-size:16px;max-width:44ch}
+  .cta{display:flex;flex-wrap:wrap;gap:10px}
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:13px 22px;border-radius:9px;font-weight:600;font-size:15px;text-decoration:none;border:1.5px solid var(--accent)}
+  .btn.primary{background:var(--accent);color:var(--accent-ink)}
+  .btn.ghost{color:var(--accent);background:transparent}
+  .btn:hover{filter:brightness(1.07)}
+  .news{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:24px 26px}
+  .news-h{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-bottom:12px}
+  .tag{display:inline-block;font-size:12px;font-weight:600;padding:3px 10px;border-radius:6px;background:var(--accent-soft);color:var(--accent)}
+  .date{font-family:var(--font-num);font-size:12.5px;color:var(--muted);font-variant-numeric:tabular-nums}
+  .news h2{font-size:20px;line-height:1.4;letter-spacing:-.02em;margin:0 0 10px;text-wrap:balance}
+  .news ul{list-style:none;margin:0;padding:0}
+  .news li{display:flex;gap:10px;padding:11px 0;border-bottom:1px solid var(--line);font-size:14.5px}
+  .news li:last-child{border-bottom:0}
+  .news li .date{flex:none;padding-top:2px}
+  .more{display:inline-block;margin-top:12px;font-size:14px;font-weight:600;color:var(--accent);text-decoration:none}
+  .more:hover{text-decoration:underline}
+
+  /* 기준선 */
+  .rules-box{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:20px 24px}
+  .rules-head{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:12px}
+  .rules-head h2{font-size:15px;margin:0;font-weight:700}
+  .rules-head span{font-size:12.5px;color:var(--muted)}
+  .rules{display:grid;grid-template-columns:repeat(4,minmax(0,1fr))}
+  .rule{display:flex;flex-direction:column;gap:2px;padding:4px 16px;min-width:0}
+  .rule:first-child{padding-left:0}
+  .rule + .rule{border-left:1px solid var(--line)}
+  .rule .v{font-family:var(--font-num);font-weight:600;font-size:22px;letter-spacing:-.02em;font-variant-numeric:tabular-nums}
   .rule .v small{font-family:var(--font-body);font-size:13px;font-weight:500;color:var(--muted);margin-left:2px}
-  .rule .k{font-size:12.5px;color:var(--muted);line-height:1.4}
-  .rules-cap{font-size:12px;color:var(--muted);margin:8px 0 0}
-  @media (max-width:680px){
-    .rules{grid-template-columns:repeat(2,minmax(0,1fr))}
-    .rule:nth-child(3){padding-left:0;border-left:0}
-    .rule:nth-child(n+3){border-top:1px solid var(--line)}
-  }
+  .rule .k{font-size:12.5px;color:var(--muted);line-height:1.45}
 
-  /* 도구 목록 */
-  .tools{display:flex;flex-direction:column;gap:0}
-  .tools-h{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin:0 0 14px}
-  .tools-h h2{font-size:17px;font-weight:700;margin:0;letter-spacing:-.01em}
-  .tools-h span{font-size:12.5px;color:var(--muted)}
-  .stage{display:grid;grid-template-columns:120px minmax(0,1fr);gap:20px;padding:22px 0;border-top:1px solid var(--line)}
+  /* 섹션 공통 */
+  section.block{padding-block:56px 0}
+  .sec-h{display:flex;justify-content:space-between;align-items:flex-end;gap:16px;margin-bottom:22px}
+  .sec-h h2{font-size:clamp(22px,3vw,28px);letter-spacing:-.03em;margin:0 0 6px;text-wrap:balance}
+  .sec-h p{margin:0;color:var(--muted);font-size:14.5px;max-width:56ch}
+
+  /* 시뮬레이터 질문형 목록 */
+  .sim{display:grid;grid-template-columns:minmax(0,1.6fr) minmax(0,1fr);gap:32px;align-items:start}
+  .stage{padding:20px 0;border-top:1px solid var(--line)}
   .stage:last-child{border-bottom:1px solid var(--line)}
-  .step{display:flex;flex-direction:column;gap:2px;padding-top:4px}
-  .step b{font-family:var(--font-num);font-size:12px;font-weight:600;color:var(--gold);letter-spacing:.08em}
-  .step span{font-size:15px;font-weight:700}
-  a.tool{display:flex;flex-direction:column;gap:10px;padding:20px 22px;background:var(--surface);border:1px solid var(--line);
-    border-radius:12px;color:inherit;text-decoration:none;transition:border-color .15s,transform .15s}
-  a.tool:hover{border-color:var(--accent);transform:translateY(-1px)}
-  a.tool:focus-visible{outline:3px solid var(--accent);outline-offset:2px}
-  .tool-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px}
-  .tool h3{font-size:19px;font-weight:700;letter-spacing:-.02em;margin:0}
-  .go{font-size:13px;font-weight:600;color:var(--accent);white-space:nowrap}
-  .q{margin:0;color:var(--muted);font-size:14.5px}
-  .chips{display:flex;flex-wrap:wrap;gap:6px;margin:2px 0 0;padding:0;list-style:none}
-  .chips li{font-size:12px;font-weight:500;padding:3px 10px;border-radius:999px;background:var(--accent-soft);color:var(--accent)}
-  @media (max-width:600px){
-    .stage{grid-template-columns:1fr;gap:10px}
-    .step{flex-direction:row;align-items:baseline;gap:8px}
-  }
+  .stage-h{display:flex;align-items:baseline;gap:10px;margin-bottom:8px}
+  .chip{font-size:12.5px;font-weight:600;padding:3px 10px;border-radius:6px}
+  .chip.collect{color:var(--t-collect);background:var(--t-collect-bg)}
+  .chip.grow{color:var(--t-grow);background:var(--t-grow-bg)}
+  .chip.div{color:var(--t-div);background:var(--t-div-bg)}
+  .chip.draw{color:var(--t-draw);background:var(--t-draw-bg)}
+  .stage-h span{font-size:13px;color:var(--muted)}
+  a.q{display:grid;grid-template-columns:minmax(0,1fr) auto auto;align-items:center;gap:14px;padding:11px 10px;margin-inline:-10px;border-radius:9px;text-decoration:none}
+  a.q:hover{background:var(--surface)}
+  a.q b{font-size:16px;font-weight:600;letter-spacing:-.015em;line-height:1.45}
+  a.q small{font-size:13px;color:var(--muted);white-space:nowrap}
+  a.q .arr{color:var(--accent);font-weight:700;transition:transform .15s}
+  a.q:hover .arr{transform:translateX(3px)}
+  .guide{position:sticky;top:84px;background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:24px}
+  .guide h3{font-size:17px;margin:6px 0 4px;letter-spacing:-.02em}
+  .guide > p{margin:0 0 14px;font-size:13.5px;color:var(--muted)}
+  .guide ol{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:2px}
+  .guide li a{display:flex;flex-direction:column;gap:1px;padding:10px 12px;margin-inline:-12px;border-radius:9px;text-decoration:none}
+  .guide li a:hover{background:var(--sunk)}
+  .guide li span{font-size:13px;color:var(--muted)}
+  .guide li b{font-size:14.5px;font-weight:600;color:var(--accent)}
+  .guide .note{margin-top:14px;padding-top:14px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted)}
 
-  footer{font-size:12.5px;color:var(--muted);line-height:1.7;max-width:64ch}
-  @media (prefers-reduced-motion:reduce){a.tool{transition:none}a.tool:hover{transform:none}}
+  /* 업데이트 기록 */
+  .log{background:var(--surface);border:1px solid var(--line);border-radius:16px;padding:6px 24px}
+  .log-row{display:grid;grid-template-columns:auto minmax(0,1fr) auto;gap:14px;align-items:center;padding:14px 0;border-bottom:1px solid var(--line)}
+  .log-row:last-child{border-bottom:0}
+  .log-row .kind{font-size:12px;font-weight:600;padding:2px 9px;border-radius:5px;background:var(--sunk);color:var(--muted);white-space:nowrap}
+  .log-row .kind.new{background:var(--accent-soft);color:var(--accent)}
+  .log-row p{margin:0;font-size:14.5px}
+
+  /* 이용 안내 */
+  .about{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:16px}
+  .about div{background:var(--surface);border:1px solid var(--line);border-radius:14px;padding:20px 22px}
+  .about h3{font-size:15.5px;margin:0 0 6px;letter-spacing:-.01em}
+  .about p{margin:0;font-size:14px;color:var(--muted)}
+
+  footer{margin-top:64px;padding-block:28px 48px;border-top:1px solid var(--line);font-size:12.5px;color:var(--muted)}
+  footer .wrap{display:flex;flex-wrap:wrap;justify-content:space-between;gap:12px}
+  footer p{margin:0;max-width:62ch}
+
+  @media (max-width:860px){
+    .hero{grid-template-columns:1fr;gap:28px;padding-block:40px 32px}
+    .sim{grid-template-columns:1fr}
+    .guide{position:static}
+    .about{grid-template-columns:1fr}
+  }
+  @media (max-width:640px){
+    .rules{grid-template-columns:repeat(2,minmax(0,1fr));row-gap:12px}
+    .rule:nth-child(3){padding-left:0;border-left:0}
+    .rule:nth-child(odd){padding-left:0}
+    a.q{grid-template-columns:minmax(0,1fr) auto}
+    a.q small{grid-column:1;grid-row:2;white-space:normal}
+    a.q .arr{grid-row:1 / span 2;grid-column:2}
+    .log-row{grid-template-columns:auto minmax(0,1fr)}
+    .log-row .date{grid-column:2}
+    nav.menu a{padding:7px 8px}
+    .brand{font-size:16px}
+  }
+  @media (prefers-reduced-motion:reduce){html{scroll-behavior:auto}a.q .arr{transition:none}}
 </style>
 </head>
 <body>
-<main class="page">
-  <header>
-    <span class="owner">잘란부장의 은퇴 준비 계산 도구</span>
-    <h1>잘란부장 연금투자</h1>
-    <p class="lede">모으고, 배당으로 받고, 연금으로 꺼내 쓰는 단계마다 세금이 얼마나 붙는지 직접 숫자를 넣어 확인하는 시뮬레이터 모음입니다.</p>
-  </header>
 
-  <section aria-labelledby="rules-h">
-    <h2 id="rules-h" class="tools-h" style="font-size:13px;font-weight:600;color:var(--muted);margin:0 0 8px">세금이 갈리는 기준선</h2>
-    <div class="rules">
-      <div class="rule"><span class="v">200<small>만원</small></span><span class="k">ISA 일반형 비과세 한도 (서민형 400만원)</span></div>
-      <div class="rule"><span class="v">1,000<small>만원</small></span><span class="k">금융소득 지역 건보료 산입 문턱</span></div>
-      <div class="rule"><span class="v">1,500<small>만원</small></span><span class="k">사적연금 저율 분리과세 연 한도</span></div>
-      <div class="rule"><span class="v">2,000<small>만원</small></span><span class="k">금융소득종합과세 기준</span></div>
-    </div>
-    <p class="rules-cap">2026년 세법 기준 · 각 시뮬레이터에 반영된 값</p>
-  </section>
+<header class="topbar">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="잘란부장 연금투자 처음으로">
+      <i aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2 12l4-4 3 3 5-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round" style="color:var(--accent-ink)"/></svg></i>
+      잘란부장 연금투자
+    </a>
+    <nav class="menu" aria-label="주요 메뉴">
+      <a href="#tools">시뮬레이터</a>
+      <a href="#rules">기준선</a>
+      <a href="#updates">업데이트</a>
+      <a href="#about">이용 안내</a>
+    </nav>
+  </div>
+</header>
 
-  <section class="tools" aria-labelledby="tools-h">
-    <div class="tools-h"><h2 id="tools-h">시뮬레이터</h2><span>4개 · 은퇴 자산의 흐름 순서</span></div>
+<main id="top">
+  <div class="wrap">
 
-    <div class="stage">
-      <div class="step"><b>STEP 1</b><span>모으기</span></div>
-      <a class="tool" href="tools/isa-tax.html">
-        <div class="tool-top"><h3>ISA 손익통산 세금 계산기</h3><span class="go">열기 →</span></div>
-        <p class="q">ISA를 해지할 때 세금이 얼마 나올까? 종목별 손익을 넣으면 비과세 항목을 빼고 손익을 통산해 9.9% 분리과세액을 계산합니다.</p>
-        <ul class="chips"><li>일반형·서민형</li><li>손익통산</li><li>9.9% 분리과세</li></ul>
-      </a>
-    </div>
+    <section class="hero">
+      <div>
+        <p class="kicker">잘란부장의 은퇴 준비 계산 도구</p>
+        <h1>모으고, 굴리고, 꺼내 쓰는 돈의 세금을 <em>내 숫자로</em> 계산해 보세요.</h1>
+        <p class="lede">ISA 정산부터 연금계좌 리밸런싱, 배당과 건보료, 연금 인출까지. 단계마다 궁금한 질문을 골라 바로 계산합니다.</p>
+        <div class="cta">
+          <a class="btn primary" href="#tools">내 질문 고르기</a>
+          <a class="btn ghost" href="#updates">업데이트 소식</a>
+        </div>
+      </div>
 
-    <div class="stage">
-      <div class="step"><b>STEP 2</b><span>굴리기</span></div>
-      <a class="tool" href="tools/pension-rebalancing.html">
-        <div class="tool-top"><h3>연금계좌 리밸런싱</h3><span class="go">열기 →</span></div>
-        <p class="q">테마별 비중이 목표에서 얼마나 벗어났고, 무엇을 얼마나 사고팔아야 할까? 종가로 평가해 조정 금액을 계산합니다.</p>
-        <ul class="chips"><li>목표 비중 ±밴드</li><li>안전자산 30% 점검</li><li>커버드콜 비중</li><li>추가 납입금 반영</li></ul>
-      </a>
-    </div>
+      <aside class="news" aria-labelledby="news-h">
+        <div class="news-h"><span class="tag">업데이트</span><span class="date">2026-10-09</span></div>
+        <h2 id="news-h">시뮬레이터가 4개로 늘었어요.<br>최근 바뀐 내용부터 확인하세요.</h2>
+        <ul>
+          <li><span class="date">10-09</span><span>메인 화면을 질문형 목록으로 개편</span></li>
+          <li><span class="date">10-06</span><span>연금계좌 리밸런싱 추가</span></li>
+          <li><span class="date">10-05</span><span>연금 인출 시뮬레이터 세율 표시 오류 수정</span></li>
+        </ul>
+        <a class="more" href="#updates">업데이트 전체 보기 →</a>
+      </aside>
+    </section>
 
-    <div class="stage">
-      <div class="step"><b>STEP 3</b><span>배당 받기</span></div>
-      <a class="tool" href="tools/dividend-cashflow.html">
-        <div class="tool-top"><h3>배당 현금흐름 시뮬레이터</h3><span class="go">열기 →</span></div>
-        <p class="q">매달 배당이 얼마 들어오고, 세금과 건보료를 떼면 얼마가 남을까? 일반 과세계좌와 연금계좌를 나란히 비교합니다.</p>
-        <ul class="chips"><li>월별 배당 캘린더</li><li>금융소득종합과세</li><li>지역 건보료</li><li>커버드콜 과세비율</li></ul>
-      </a>
-    </div>
+    <section id="rules" class="rules-box" aria-labelledby="rules-h">
+      <div class="rules-head"><h2 id="rules-h">세금이 갈리는 기준선</h2><span>2026년 세법 기준 · 시뮬레이터에 반영된 값</span></div>
+      <div class="rules">
+        <div class="rule"><span class="v">200<small>만원</small></span><span class="k">ISA 일반형 비과세 한도<br>(서민형 400만원)</span></div>
+        <div class="rule"><span class="v">1,000<small>만원</small></span><span class="k">금융소득 지역 건보료<br>산입 문턱</span></div>
+        <div class="rule"><span class="v">1,500<small>만원</small></span><span class="k">사적연금 저율 분리과세<br>연 한도</span></div>
+        <div class="rule"><span class="v">2,000<small>만원</small></span><span class="k">금융소득종합과세<br>기준</span></div>
+      </div>
+    </section>
 
-    <div class="stage">
-      <div class="step"><b>STEP 4</b><span>꺼내 쓰기</span></div>
-      <a class="tool" href="tools/pension-withdrawal.html">
-        <div class="tool-top"><h3>연금 인출 세금 시뮬레이터</h3><span class="go">열기 →</span></div>
-        <p class="q">연금저축·IRP를 매달 얼마씩 꺼내면 몇 살까지 버틸까? 재원별 세금과 운용 수익을 함께 굴리며 연차별 인출표를 만듭니다.</p>
-        <ul class="chips"><li>퇴직소득 30~40% 감면</li><li>균형형 vs 11년차 최적화</li><li>연차별 잔여재원</li></ul>
-      </a>
-    </div>
-  </section>
+    <section id="tools" class="block" aria-labelledby="tools-h">
+      <div class="sec-h">
+        <div>
+          <h2 id="tools-h">은퇴 자산의 숫자 질문, 직접 계산해 보세요</h2>
+          <p>세금과 건강보험료를 반영해 내 조건으로 계산합니다. 궁금한 질문을 누르면 해당 시뮬레이터가 열려요.</p>
+        </div>
+      </div>
 
-  <footer>
-    교육용 추정 도구입니다. 실제 세금은 개인 상황과 세법 개정에 따라 달라질 수 있으니, 실제 인출이나 신고 전에는 세무 전문가와 확인하세요.
-  </footer>
+      <div class="sim">
+        <div>
+          <div class="stage">
+            <div class="stage-h"><span class="chip collect">모으기</span><span>ISA 만기와 해지</span></div>
+            <a class="q" href="tools/isa-tax.html"><b>ISA를 해지하면 세금이 얼마나 나올까?</b><small>ISA 손익통산 세금 계산기</small><span class="arr" aria-hidden="true">→</span></a>
+            <a class="q" href="tools/isa-tax.html"><b>손실 난 종목이 있으면 세금이 줄어들까?</b><small>ISA 손익통산 세금 계산기</small><span class="arr" aria-hidden="true">→</span></a>
+          </div>
+          <div class="stage">
+            <div class="stage-h"><span class="chip grow">굴리기</span><span>연금계좌 비중 관리</span></div>
+            <a class="q" href="tools/pension-rebalancing.html"><b>내 연금계좌, 지금 무엇을 얼마나 사고팔아야 할까?</b><small>연금계좌 리밸런싱</small><span class="arr" aria-hidden="true">→</span></a>
+            <a class="q" href="tools/pension-rebalancing.html"><b>IRP 안전자산 30% 기준을 지키고 있을까?</b><small>연금계좌 리밸런싱</small><span class="arr" aria-hidden="true">→</span></a>
+          </div>
+          <div class="stage">
+            <div class="stage-h"><span class="chip div">배당 받기</span><span>배당 현금흐름과 건보료</span></div>
+            <a class="q" href="tools/dividend-cashflow.html"><b>배당이 늘면 종합과세나 건보료에 걸릴까?</b><small>배당 현금흐름 시뮬레이터</small><span class="arr" aria-hidden="true">→</span></a>
+            <a class="q" href="tools/dividend-cashflow.html"><b>같은 배당, 연금계좌에서 받으면 얼마나 더 남을까?</b><small>배당 현금흐름 시뮬레이터</small><span class="arr" aria-hidden="true">→</span></a>
+          </div>
+          <div class="stage">
+            <div class="stage-h"><span class="chip draw">꺼내 쓰기</span><span>연금 수령과 인출 순서</span></div>
+            <a class="q" href="tools/pension-withdrawal.html"><b>연금을 매달 꺼내 쓰면 몇 살까지 버틸까?</b><small>연금 인출 세금 시뮬레이터</small><span class="arr" aria-hidden="true">→</span></a>
+            <a class="q" href="tools/pension-withdrawal.html"><b>퇴직금은 몇 년차부터 꺼내는 게 유리할까?</b><small>연금 인출 세금 시뮬레이터</small><span class="arr" aria-hidden="true">→</span></a>
+          </div>
+        </div>
+
+        <aside class="guide" aria-labelledby="guide-h">
+          <span class="tag">상황별 가이드</span>
+          <h3 id="guide-h">무엇부터 계산할지 모르겠다면</h3>
+          <p>지금 상황에 가까운 것을 고르세요.</p>
+          <ol>
+            <li><a href="tools/isa-tax.html"><span>ISA 만기가 다가오고 있다면</span><b>ISA 손익통산 세금 계산기 →</b></a></li>
+            <li><a href="tools/pension-rebalancing.html"><span>시장이 크게 움직여 비중이 틀어졌다면</span><b>연금계좌 리밸런싱 →</b></a></li>
+            <li><a href="tools/dividend-cashflow.html"><span>연 배당이 1,000만원에 가까워진다면</span><b>배당 현금흐름 시뮬레이터 →</b></a></li>
+            <li><a href="tools/pension-withdrawal.html"><span>연금 개시를 앞두고 있다면</span><b>연금 인출 세금 시뮬레이터 →</b></a></li>
+          </ol>
+          <p class="note">각 시뮬레이터 위쪽의 “← 잘란부장 연금투자 홈”을 누르면 이 화면으로 돌아와요.</p>
+        </aside>
+      </div>
+    </section>
+
+    <section id="updates" class="block" aria-labelledby="updates-h">
+      <div class="sec-h">
+        <div>
+          <h2 id="updates-h">업데이트 소식</h2>
+          <p>시뮬레이터 추가와 수정 기록입니다.</p>
+        </div>
+      </div>
+      <div class="log">
+        <div class="log-row"><span class="kind">개편</span><p>메인 화면을 질문형 시뮬레이터 목록과 상황별 가이드로 개편했어요.</p><span class="date">2026-10-09</span></div>
+        <div class="log-row"><span class="kind new">추가</span><p>연금계좌 리밸런싱을 추가했어요. 테마별 목표 비중과 조정 금액, 안전자산·커버드콜 비중을 확인할 수 있어요.</p><span class="date">2026-10-06</span></div>
+        <div class="log-row"><span class="kind">수정</span><p>연금 인출 세금 시뮬레이터의 연차별 인출표 ‘구분’ 칸에 세율이 표시되지 않던 오류를 고쳤어요.</p><span class="date">2026-10-05</span></div>
+        <div class="log-row"><span class="kind new">오픈</span><p>ISA 손익통산 세금 계산기, 배당 현금흐름 시뮬레이터, 연금 인출 세금 시뮬레이터로 홈페이지를 열었어요.</p><span class="date">2026-10-05</span></div>
+      </div>
+    </section>
+
+    <section id="about" class="block" aria-labelledby="about-h">
+      <div class="sec-h">
+        <div>
+          <h2 id="about-h">이용 안내</h2>
+          <p>시뮬레이터를 쓰기 전에 알아 두면 좋은 내용이에요.</p>
+        </div>
+      </div>
+      <div class="about">
+        <div><h3>입력한 값은 저장되지 않아요</h3><p>계산은 내 브라우저 안에서만 이루어지고 어디로도 전송되지 않습니다. 새로고침하면 처음 예시 값으로 돌아가요.</p></div>
+        <div><h3>2026년 세법 기준이에요</h3><p>세율과 한도는 2026년 기준으로 반영했습니다. 세법이 바뀌면 결과가 달라질 수 있어요.</p></div>
+        <div><h3>교육용 추정 도구예요</h3><p>실제 세금은 개인 상황에 따라 다릅니다. 인출이나 신고 전에는 세무 전문가와 꼭 확인하세요.</p></div>
+      </div>
+    </section>
+
+  </div>
 </main>
+
+<footer>
+  <div class="wrap">
+    <p>잘란부장 연금투자 · 은퇴 자산의 세금을 직접 계산해 보는 시뮬레이터 모음</p>
+    <p>이 사이트의 계산 결과는 참고용이며 투자 권유나 세무 자문이 아닙니다.</p>
+  </div>
+</footer>
+
 </body>
 </html>
