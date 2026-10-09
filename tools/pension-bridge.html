@@ -1,0 +1,536 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<title>국민연금 전 생활비 시뮬레이터</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+KR:wght@400;500;600;700&family=IBM+Plex+Mono:wght@500;600&display=swap" rel="stylesheet">
+<style>
+  /* Layout: 왼쪽 입력 패널(고정) · 오른쪽 결과(요약 → 공백기 → 첫 연금 연도 → 차트 → 비교 → 표 → 가정) */
+  :root{
+    --bg:#F4F6F8; --surface:#FFFFFF; --sunk:#EEF2F4; --ink:#16213A; --muted:#5A6479; --line:#DDE3EA;
+    --accent:#2F5D50; --accent-soft:#E2EEEA; --accent-ink:#FFFFFF;
+    --gap:#B7791F; --gap-soft:#F7EBD6; --bad:#B4413A; --bad-soft:#F6E1DE; --pre:#8A94A8;
+    --font-body:"IBM Plex Sans KR",-apple-system,"Apple SD Gothic Neo","Malgun Gothic",sans-serif;
+    --font-num:"IBM Plex Mono",ui-monospace,Menlo,monospace;
+  }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#0E1420; --surface:#161F30; --sunk:#121A28; --ink:#E5EAF2; --muted:#9AA5BA; --line:#26324A;
+      --accent:#7CC2AC; --accent-soft:#1B3330; --accent-ink:#0E1420;
+      --gap:#E2B865; --gap-soft:#33291A; --bad:#EE8F86; --bad-soft:#3A2222; --pre:#6E7891;
+      color-scheme:dark;
+    }
+  }
+  :root[data-theme="dark"]{
+    --bg:#0E1420; --surface:#161F30; --sunk:#121A28; --ink:#E5EAF2; --muted:#9AA5BA; --line:#26324A;
+    --accent:#7CC2AC; --accent-soft:#1B3330; --accent-ink:#0E1420;
+    --gap:#E2B865; --gap-soft:#33291A; --bad:#EE8F86; --bad-soft:#3A2222; --pre:#6E7891;
+    color-scheme:dark;
+  }
+  *{box-sizing:border-box}
+  [hidden]{display:none!important}
+  body{margin:0;background:var(--bg);color:var(--ink);font-family:var(--font-body);font-size:15px;line-height:1.6;
+    -webkit-font-smoothing:antialiased;word-break:keep-all;overflow-wrap:break-word}
+  .n{font-family:var(--font-num);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
+  .wrap{max-width:1160px;margin:0 auto;padding-inline:20px}
+  header.top{padding-block:36px 26px}
+  .kicker{font-size:13px;font-weight:600;color:var(--accent);letter-spacing:.04em;margin:0 0 8px}
+  h1{font-size:clamp(26px,4vw,36px);letter-spacing:-.03em;line-height:1.25;margin:0 0 8px;text-wrap:balance}
+  header.top p{margin:0;color:var(--muted);max-width:62ch}
+
+  .layout{display:grid;grid-template-columns:340px minmax(0,1fr);gap:24px;align-items:start;padding-bottom:64px}
+  .card{background:var(--surface);border:1px solid var(--line);border-radius:16px}
+
+  /* 입력 */
+  .inputs{position:sticky;top:16px;padding:22px}
+  .inputs h2{font-size:17px;margin:0 0 2px}
+  .inputs > p{margin:0 0 16px;font-size:13px;color:var(--muted)}
+  .field{display:flex;flex-direction:column;gap:5px;padding-block:10px;border-top:1px solid var(--line)}
+  .field label{font-size:14px;font-weight:600}
+  .box{display:flex;align-items:center;border:1px solid var(--line);border-radius:9px;background:var(--sunk);overflow:hidden}
+  .box:focus-within{border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-soft)}
+  .box input{flex:1;min-width:0;border:0;background:transparent;color:var(--ink);font:500 16px/1 var(--font-num);padding:11px 12px;text-align:right;outline:none}
+  .box span{padding:0 12px;font-size:13px;color:var(--muted);border-left:1px solid var(--line);align-self:stretch;display:flex;align-items:center}
+  .help{font-size:12px;color:var(--muted);line-height:1.5}
+  .help b{color:var(--ink);font-weight:600}
+  details.adv{border-top:1px solid var(--line);padding-top:10px;margin-top:2px}
+  details.adv summary{cursor:pointer;font-size:13px;font-weight:600;color:var(--muted)}
+  details.adv .field{border-top:0;padding-bottom:0}
+  button.reset{margin-top:14px;width:100%;font:inherit;font-size:13.5px;font-weight:600;padding:10px;border-radius:9px;border:1px solid var(--line);background:transparent;color:var(--muted);cursor:pointer}
+  button.reset:hover{color:var(--ink);border-color:var(--muted)}
+  :focus-visible{outline:3px solid var(--accent);outline-offset:2px}
+
+  /* 결과 */
+  .results{display:flex;flex-direction:column;gap:20px;min-width:0}
+  .basis{padding:16px 20px;display:flex;flex-wrap:wrap;gap:6px 8px;align-items:center}
+  .basis b{font-size:13px;margin-right:4px}
+  .pill{font-size:12.5px;padding:3px 10px;border-radius:999px;background:var(--sunk);color:var(--muted);white-space:nowrap}
+  .pill.fixed{background:var(--accent-soft);color:var(--accent)}
+
+  .hero{padding:26px 26px 22px}
+  .hero .tag{font-size:12.5px;font-weight:600;color:var(--accent)}
+  .hero h2{font-size:clamp(22px,3.2vw,30px);letter-spacing:-.03em;line-height:1.3;margin:6px 0 4px;text-wrap:balance}
+  .hero h2 em{font-style:normal;color:var(--bad)}
+  .hero h2 em.ok{color:var(--accent)}
+  .hero .sub{margin:0 0 18px;font-size:13px;color:var(--muted)}
+  .kpis{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+  .kpi{background:var(--sunk);border-radius:12px;padding:14px 16px;min-width:0}
+  .kpi .k{font-size:12.5px;color:var(--muted)}
+  .kpi .v{font-size:19px;font-weight:600;margin-top:2px}
+  .kpi .s{font-size:12px;color:var(--muted);margin-top:2px}
+
+  .sec{padding:22px 24px}
+  .sec h3{font-size:16.5px;margin:0 0 4px;letter-spacing:-.01em}
+  .sec .lead{margin:0 0 14px;font-size:13px;color:var(--muted)}
+  .gapbox{border-left:4px solid var(--gap);background:var(--gap-soft);border-radius:0 12px 12px 0;padding:16px 18px}
+  .gapbox p{margin:0 0 6px}
+  .gapbox small{display:block;font-size:12px;color:var(--muted)}
+  .row3{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+  .row3 .kpi .v{font-size:18px}
+  .kpi.minus .v{color:var(--bad)}
+  .kpi.plus .v{color:var(--accent)}
+  .two{display:grid;grid-template-columns:1fr 1fr;gap:20px}
+
+  /* 차트 */
+  .legend{display:flex;flex-wrap:wrap;gap:6px 16px;font-size:12.5px;color:var(--muted);margin-bottom:8px}
+  .legend i{display:inline-block;width:18px;height:0;border-top:2.5px solid;vertical-align:middle;margin-right:6px}
+  .chartbox{position:relative}
+  svg.chart{width:100%;height:auto;display:block;overflow:visible}
+  .tip{position:absolute;pointer-events:none;background:var(--ink);color:var(--bg);font-size:12px;line-height:1.5;padding:8px 10px;border-radius:8px;white-space:nowrap;transform:translate(-50%,-110%);opacity:0;transition:opacity .1s}
+
+  /* 비교표 */
+  .tablebox{overflow-x:auto;border:1px solid var(--line);border-radius:12px}
+  table{border-collapse:collapse;width:100%;font-size:13.5px}
+  th,td{padding:9px 12px;text-align:right;white-space:nowrap;border-bottom:1px solid var(--line)}
+  th{font-size:12px;font-weight:600;color:var(--muted);background:var(--sunk);position:sticky;top:0}
+  th:first-child,td:first-child{text-align:left}
+  tbody tr:last-child td{border-bottom:0}
+  td.n{font-size:13px}
+  .seg{font-size:12px;font-weight:600;padding:2px 8px;border-radius:5px;white-space:nowrap}
+  .seg.gap{background:var(--gap-soft);color:var(--gap)}
+  .seg.post{background:var(--accent-soft);color:var(--accent)}
+  .seg.out{background:var(--bad-soft);color:var(--bad)}
+  tr.dead td{color:var(--muted)}
+  td.short{color:var(--bad);font-weight:600}
+  .cmp td,.cmp th{text-align:center}
+  .cmp td:first-child,.cmp th:first-child{text-align:left}
+  .cmp td.me{outline:2px solid var(--accent);outline-offset:-2px;font-weight:700}
+  .cmp .live{color:var(--accent);font-weight:600}
+  .cmp .die{color:var(--bad)}
+  .scroll-y{max-height:560px;overflow:auto}
+
+  details.more{border-top:1px solid var(--line);margin-top:4px}
+  details.more summary{cursor:pointer;padding:14px 0 0;font-weight:600;font-size:14.5px}
+  details.more ul{margin:10px 0 0;padding-left:18px;font-size:13px;color:var(--muted)}
+  details.more li{margin-bottom:5px}
+  .foot{font-size:12px;color:var(--muted);margin:0}
+
+  @media (max-width:920px){
+    .layout{grid-template-columns:1fr}
+    .inputs{position:static}
+  }
+  @media (max-width:600px){
+    .kpis,.row3{grid-template-columns:1fr}
+    .two{grid-template-columns:1fr}
+    .hero,.sec{padding:18px}
+  }
+  @media (prefers-reduced-motion:reduce){.tip{transition:none}}
+</style>
+</head>
+<body>
+<a class="portal-home" href="../index.html" style="display:flex;align-items:center;padding:10px 20px;background:#16213A;color:#E8ECF4;font:600 13px/1.4 -apple-system,'Apple SD Gothic Neo',sans-serif;text-decoration:none">← 잘란부장 연금투자 홈</a>
+
+<div class="wrap">
+  <header class="top">
+    <p class="kicker">꺼내 쓰기 · 국민연금 공백기</p>
+    <h1>국민연금 전 생활비 시뮬레이터</h1>
+    <p>은퇴 후 국민연금이 나오기 전까지, 지금 모아 둔 금융자산으로 생활비를 감당할 수 있는지와 자산이 몇 살까지 버티는지 계산합니다.</p>
+  </header>
+
+  <div class="layout">
+    <!-- 입력 -->
+    <aside class="card inputs" aria-labelledby="in-h">
+      <h2 id="in-h">내 조건</h2>
+      <p>값을 바꾸면 결과가 바로 다시 계산돼요.</p>
+
+      <div class="field">
+        <label for="birth">출생연도</label>
+        <div class="box"><input id="birth" inputmode="numeric" value="1969"><span>년</span></div>
+        <span class="help" id="birthHelp"></span>
+      </div>
+      <div class="field">
+        <label for="retire">은퇴 예상 나이</label>
+        <div class="box"><input id="retire" inputmode="numeric" value="60"><span>세</span></div>
+      </div>
+      <div class="field">
+        <label for="assets">현재 금융자산</label>
+        <div class="box"><input id="assets" class="money" inputmode="numeric" value="500,000,000"><span>원</span></div>
+        <span class="help"><b id="assetsKo"></b> · 현금·예적금·주식·ETF·펀드 등 생활비로 쓸 돈. 집·차·IRP·연금저축·퇴직연금은 빼고 넣어요.</span>
+      </div>
+      <div class="field">
+        <label for="monthly">은퇴 후 월 생활비</label>
+        <div class="box"><input id="monthly" class="money" inputmode="numeric" value="5,000,000"><span>원</span></div>
+        <span class="help"><b id="monthlyKo"></b> · 지금 물가 기준 금액이에요.</span>
+      </div>
+      <div class="field">
+        <label for="pension">국민연금 예상 월액</label>
+        <div class="box"><input id="pension" class="money" inputmode="numeric" value="2,000,000"><span>원</span></div>
+        <span class="help"><b id="pensionKo"></b> · 국민연금공단 ‘내 연금 알아보기’의 정상 수령 나이·현재가치 기준 세전 월액.</span>
+      </div>
+      <div class="field">
+        <label for="recv">국민연금 수령 나이</label>
+        <div class="box"><input id="recv" inputmode="numeric" value="65"><span>세</span></div>
+        <span class="help" id="recvHelp"></span>
+      </div>
+      <div class="field">
+        <label for="ret">은퇴 전 연평균 수익률</label>
+        <div class="box"><input id="ret" inputmode="decimal" value="8"><span>%</span></div>
+        <span class="help" id="retHelp">지금부터 은퇴할 때까지 적용해요. 미래 수익을 보장하는 값이 아니라 내가 정하는 가정이에요.</span>
+      </div>
+      <div class="field">
+        <label for="retPost">은퇴 후 연평균 수익률</label>
+        <div class="box"><input id="retPost" inputmode="decimal" value="8"><span>%</span></div>
+        <span class="help">은퇴 후 매년 남은 잔액에 적용해요. 은퇴 후 예금·채권 위주로 보수적으로 운용한다면 낮춰 보세요.</span>
+      </div>
+      <details class="adv">
+        <summary>물가상승률 바꾸기</summary>
+        <div class="field">
+          <label for="infl">물가상승률</label>
+          <div class="box"><input id="infl" inputmode="decimal" value="3.114"><span>%</span></div>
+          <span class="help">기본값 3.114%(약 3.11%)는 2022~2026년 국민연금 실제 인상률(2.5·5.1·3.6·2.3·2.1%)을 복리로 환산한 연평균이에요. 생활비와 국민연금 모두에 적용해요.</span>
+        </div>
+      </details>
+      <button class="reset" id="reset" type="button">예시 값으로 되돌리기</button>
+    </aside>
+
+    <!-- 결과 -->
+    <main class="results" aria-live="polite">
+      <section class="card basis" id="basis" aria-label="이번 계산 기준"></section>
+
+      <section class="card hero">
+        <span class="tag">계산 결과</span>
+        <h2 id="headline"></h2>
+        <p class="sub" id="headSub"></p>
+        <div class="kpis" id="kpis"></div>
+      </section>
+
+      <section class="card sec" id="gapSec">
+        <h3>국민연금 전 공백기</h3>
+        <p class="lead" id="gapLead"></p>
+        <div class="gapbox" id="gapBox"></div>
+      </section>
+
+      <section class="card sec">
+        <div class="two">
+          <div>
+            <h3>물가를 반영한 월 생활비</h3>
+            <p class="lead">지금과 같은 생활을 유지하는 데 필요한 금액이에요.</p>
+            <p style="margin:0" id="infLine"></p>
+          </div>
+          <div>
+            <h3>첫 연금 수령 연도</h3>
+            <p class="lead" id="firstLead"></p>
+          </div>
+        </div>
+        <div class="row3" id="firstKpis" style="margin-top:12px"></div>
+        <p class="foot" id="firstNote" style="margin-top:10px"></p>
+      </section>
+
+      <section class="card sec">
+        <h3>지금부터 100세까지 금융자산 흐름</h3>
+        <p class="lead">연도별 기초 잔액이에요. 은퇴 전에는 추가 저축이나 인출 없이 수익률만큼 불어난다고 가정해요.</p>
+        <div class="legend">
+          <span><i style="border-color:var(--pre);border-top-style:dashed"></i>은퇴 전</span>
+          <span><i style="border-color:var(--gap)"></i>국민연금 전 공백기</span>
+          <span><i style="border-color:var(--accent)"></i>국민연금 수령 후</span>
+        </div>
+        <div class="chartbox" id="chartbox">
+          <svg class="chart" id="chart" viewBox="0 0 760 320" role="img" aria-label="나이별 금융자산 잔액 그래프"></svg>
+          <div class="tip" id="tip"></div>
+        </div>
+      </section>
+
+      <section class="card sec">
+        <h3>조건을 바꾸면 언제 소진될까</h3>
+        <p class="lead">수익률과 국민연금 수령 나이를 바꿨을 때 자산이 소진되는 나이예요. 테두리 칸이 지금 입력한 조건이에요.</p>
+        <div class="tablebox"><table class="cmp" id="cmp"></table></div>
+        <p class="foot" style="margin-top:8px">조기 수령은 1년당 6% 감액, 연기 수령은 1년당 7.2% 증액을 적용했어요.</p>
+      </section>
+
+      <section class="card sec" id="preSec">
+        <h3>은퇴 전 연도별 자산</h3>
+        <p class="lead">각 행은 표시된 나이부터 다음 나이 직전까지 1년이에요.</p>
+        <div class="tablebox"><table id="preTable"></table></div>
+      </section>
+
+      <section class="card sec">
+        <h3>은퇴 후 연도별 자산 흐름</h3>
+        <p class="lead">은퇴 후에도 매년 기초 잔액에 ‘은퇴 후 수익률’만큼 수익금이 붙고, 그해 말에 필요 인출(연 생활비 − 국민연금)만큼 꺼내 써요. 구간 말 잔액 = 기초 + 수익금 − 필요 인출.</p>
+        <div class="tablebox scroll-y"><table id="postTable"></table></div>
+
+        <details class="more">
+          <summary>계산 기준과 가정 보기</summary>
+          <ul>
+            <li>현재 나이는 2026년 − 출생연도로 계산해요. 생일은 반영하지 않아요.</li>
+            <li>계산 시작 나이는 현재 나이와 은퇴 예상 나이 중 늦은 쪽이에요.</li>
+            <li>생활비와 국민연금 월액은 2026년 현재가치로 입력하고, 매년 물가상승률만큼 오른다고 봐요.</li>
+            <li>국민연금 정상 수령 나이는 출생연도별(1969년생 이후 65세)로 정하고, 조기 수령은 최대 5년·1년당 6% 감액, 연기 수령은 최대 5년·1년당 7.2% 증액해요.</li>
+            <li>은퇴 전에 받는 국민연금, 국민연금이 생활비보다 많아 남는 금액은 금융자산에 더하지 않아요.</li>
+            <li>구간 말 잔액 = 기초 잔액 + 수익금 − 필요 인출(0원 아래로 내려가지 않음). 잔액이 처음 0원이 되는 구간의 끝 나이를 ‘소진 나이’로 표시해요.</li>
+            <li>세금·건강보험료·배우자·다른 연금, 집·자동차·IRP·연금저축·퇴직연금은 반영하지 않아요. 모든 금액은 세전 명목금액이에요.</li>
+          </ul>
+          <p class="foot" style="margin-top:10px">교육용 추정 도구예요. 실제 수익률과 물가는 달라질 수 있으니 결과를 보장된 값으로 보지 마세요.</p>
+        </details>
+      </section>
+    </main>
+  </div>
+</div>
+
+<script>
+const YEAR = 2026, END_AGE = 100;
+const DEFAULTS = {birth:"1969", retire:"60", assets:"500,000,000", monthly:"5,000,000", pension:"2,000,000", recv:"65", ret:"8", retPost:"8", infl:"3.114"};
+const $ = id => document.getElementById(id);
+const num = s => { const v = Number(String(s).replace(/[^0-9.\-]/g,"")); return Number.isFinite(v) ? v : 0; };
+
+// 금액 표기: 6억 2,985만 6,000원
+function ko(n){
+  n = Math.round(n); if (n === 0) return "0원";
+  const neg = n < 0; n = Math.abs(n);
+  const eok = Math.floor(n/1e8), man = Math.floor((n%1e8)/1e4), won = n%1e4;
+  const p = [];
+  if (eok) p.push(eok.toLocaleString("ko-KR")+"억");
+  if (man) p.push(man.toLocaleString("ko-KR")+"만");
+  if (won) p.push(won.toLocaleString("ko-KR"));
+  return (neg?"−":"") + p.join(" ") + "원";
+}
+// 짧은 표기: 6억 2,986만원 (만원 단위 반올림)
+function koShort(n){
+  const m = Math.round(n/1e4); if (m === 0) return "0원";
+  const eok = Math.floor(m/1e4), man = m%1e4;
+  return (eok? eok.toLocaleString("ko-KR")+"억" : "") + (eok&&man?" ":"") + (man? man.toLocaleString("ko-KR")+"만" : "") + "원";
+}
+const pctTxt = r => (r*100).toFixed(1).replace(/\.0$/,"")+"%";
+function normalAge(b){ if (b<=1952) return 60; if (b<=1956) return 61; if (b<=1960) return 62; if (b<=1964) return 63; if (b<=1968) return 64; return 65; }
+
+function read(){
+  return {birth:Math.round(num($("birth").value)), retire:Math.round(num($("retire").value)),
+    assets:Math.max(0,num($("assets").value)), monthly:Math.max(0,num($("monthly").value)),
+    pension:Math.max(0,num($("pension").value)), recv:Math.round(num($("recv").value)),
+    ret:num($("ret").value)/100, retPost:num($("retPost").value)/100, infl:num($("infl").value)/100};
+}
+
+function simulate(p){
+  const cur = YEAR - p.birth;
+  const start = Math.max(cur, p.retire);
+  const normal = normalAge(p.birth);
+  const recv = Math.min(normal+5, Math.max(normal-5, p.recv));
+  const adj = recv < normal ? 1 - 0.06*(normal-recv) : 1 + 0.072*(recv-normal);
+  const pens0 = p.pension * adj;
+  const g = p.infl, r = p.ret, rp = p.retPost;
+  const f = a => Math.pow(1+g, a-cur);
+
+  let bal = p.assets; const pre = [];
+  for (let a=cur; a<start; a++){
+    const ret = bal*r; pre.push({year:YEAR+a-cur, age:a, begin:bal, ret, end:bal+ret}); bal += ret;
+  }
+  const startBal = bal;
+  const rows = []; let depleted = null, gapNeed = 0, unmetTotal = 0;
+  for (let a=start; a<END_AGE; a++){
+    const living = p.monthly*12*f(a);
+    const pens = a >= recv ? pens0*12*f(a) : 0;
+    const need = Math.max(0, living - pens);
+    const ret = bal*rp;
+    const avail = Math.max(0, bal + ret);
+    const draw = Math.min(need, avail);
+    const unmet = need - draw;
+    const end = avail - draw;
+    const seg = bal <= 0.5 && need > 0 ? "out" : (a < recv ? "gap" : "post");
+    if (a < recv) gapNeed += need;
+    unmetTotal += unmet;
+    rows.push({year:YEAR+a-cur, age:a, seg, begin:bal, living, pens, ret, need, draw, unmet, end});
+    if (depleted === null && need > 0 && end <= 0.5) depleted = a + 1;
+    bal = end;
+  }
+  const firstAge = Math.max(recv, start);
+  return {cur, start, normal, recv, adj, pens0, pre, startBal, rows, depleted, gapNeed,
+    endBal: bal, unmetTotal, firstAge, f, gapYears: Math.max(0, recv - start)};
+}
+
+function pills(p, s){
+  const items = [`출생 ${p.birth}년`, `은퇴 ${p.retire}세`, `금융자산 ${koShort(p.assets)}`, `월 생활비 ${koShort(p.monthly)}`,
+    `국민연금 월 ${koShort(p.pension)}`, `수령 ${s.recv}세`, `은퇴 전 수익률 ${pctTxt(p.ret)}`, `은퇴 후 수익률 ${pctTxt(p.retPost)}`];
+  const fixed = [`현재 ${s.cur}세`, `계산 시작 ${s.start}세`, `${END_AGE}세까지 전망`, `물가 ${(p.infl*100).toFixed(2)}%`];
+  $("basis").innerHTML = `<b>이번 계산 기준</b>` + items.map(t=>`<span class="pill">${t}</span>`).join("")
+    + fixed.map(t=>`<span class="pill fixed">${t}</span>`).join("");
+}
+
+function render(){
+  const p = read();
+  // 입력 보조 문구
+  ["assets","monthly","pension"].forEach(id => $(id+"Ko").textContent = koShort(num($(id).value)));
+  const valid = p.birth>=1930 && p.birth<=2005 && p.retire>=30 && p.retire<=90;
+  if (!valid){ $("headline").textContent = "출생연도(1930~2005)와 은퇴 나이(30~90세)를 확인해 주세요."; return; }
+  const s = simulate(p);
+  $("birthHelp").textContent = `2026년 기준 ${s.cur}세 · 국민연금 정상 수령 나이 ${s.normal}세`;
+  const diff = s.recv - s.normal;
+  $("recvHelp").innerHTML = (p.recv !== s.recv ? `<b>${s.normal-5}~${s.normal+5}세 범위로 맞춰 ${s.recv}세로 계산해요.</b> ` : "")
+    + (diff===0 ? `정상 수령 나이예요. 월액 그대로 계산해요.` :
+       diff<0 ? `${-diff}년 조기 수령 → 월액 ${Math.round((1-s.adj)*1000)/10}% 감액 (${koShort(s.pens0)})` :
+                `${diff}년 연기 수령 → 월액 ${Math.round((s.adj-1)*1000)/10}% 증액 (${koShort(s.pens0)})`);
+  pills(p, s);
+
+  // 헤드라인
+  if (s.depleted !== null){
+    $("headline").innerHTML = `금융자산은 <em>${s.depleted}세</em>에 소진될 것으로 예상돼요.`;
+    $("headSub").textContent = `${s.depleted-1}세 구간이 끝날 때 잔액이 처음 0원이 되는 연 단위 추정이에요. 이후 부족한 생활비는 채우지 못해요.`;
+  } else {
+    $("headline").innerHTML = `금융자산이 <em class="ok">${END_AGE}세까지</em> 남아요.`;
+    $("headSub").textContent = `${END_AGE}세 시점 잔액은 ${ko(s.endBal)}이에요.`;
+  }
+  const shortYears = s.rows.filter(r=>r.unmet>0.5).length;
+  $("kpis").innerHTML = `
+    <div class="kpi"><div class="k">현재 ${s.cur}세 금융자산</div><div class="v n">${koShort(p.assets)}</div><div class="s">입력한 금액</div></div>
+    <div class="kpi"><div class="k">${s.start}세 은퇴 시작 자산</div><div class="v n">${koShort(s.startBal)}</div><div class="s">${s.pre.length?`${s.pre.length}년 동안 ${pctTxt(p.ret)}로 운용`:"지금부터 바로 인출"} · 이후 ${pctTxt(p.retPost)}</div></div>
+    <div class="kpi"><div class="k">${s.depleted!==null?"생활비가 부족한 기간":END_AGE+"세 시점 잔액"}</div><div class="v n" style="color:${s.depleted!==null?'var(--bad)':'var(--accent)'}">${s.depleted!==null?shortYears+"년":koShort(s.endBal)}</div><div class="s">${s.depleted!==null?`${s.depleted-1}세부터 ${END_AGE}세까지 자산으로 채우지 못함`:"상속 등으로 남는 금액"}</div></div>`;
+
+  // 공백기
+  if (s.gapYears > 0){
+    $("gapSec").hidden = false;
+    const ratio = s.startBal ? s.gapNeed/s.startBal*100 : 0;
+    $("gapLead").textContent = `${s.start}세부터 국민연금을 받는 ${s.recv}세 직전까지 ${s.gapYears}년 동안은 금융자산만으로 생활해요.`;
+    $("gapBox").innerHTML = `<p>이 기간에 필요한 자산 인출은 <b class="n">${ko(s.gapNeed)}</b>으로, 은퇴 시작 자산의 <b class="n">${ratio.toFixed(1)}%</b>예요.</p>
+      <small>각 연도 생활비를 그대로 더한 명목 합계예요. 운용수익을 고려한 최소 필요 원금과는 달라요.</small>`;
+  } else {
+    $("gapSec").hidden = false;
+    $("gapLead").textContent = "은퇴 시점에 이미 국민연금을 받고 있어서 공백기가 없어요.";
+    $("gapBox").innerHTML = `<p>국민연금이 ${s.recv}세부터 나오고 계산은 ${s.start}세부터 시작해요. 처음부터 생활비에서 국민연금을 뺀 금액만 자산에서 꺼내 써요.</p>`;
+  }
+
+  // 물가 반영 생활비 / 첫 연금 연도
+  $("infLine").innerHTML = `현재 ${s.cur}세 <b class="n">${koShort(p.monthly)}</b> → 은퇴 첫해 ${s.start}세 <b class="n">${ko(p.monthly*s.f(s.start))}</b>`;
+  const fa = s.firstAge, fl = p.monthly*s.f(fa), fp = s.pens0*s.f(fa), fd = fl - fp;
+  $("firstLead").textContent = `${YEAR + fa - s.cur}년 · ${fa}세의 월 금액이에요.`;
+  $("firstKpis").innerHTML = `
+    <div class="kpi"><div class="k">월 생활비</div><div class="v n">${ko(fl)}</div></div>
+    <div class="kpi"><div class="k">월 국민연금</div><div class="v n">${ko(fp)}</div></div>
+    <div class="kpi ${fd>0?'minus':'plus'}"><div class="k">${fd>0?"월 부족액 (자산에서 인출)":"월 남는 금액"}</div><div class="v n">${ko(Math.abs(fd))}</div></div>`;
+  $("firstNote").textContent = fd>0 ? "같은 해 생활비에서 국민연금을 뺀 금액이에요. 이만큼을 매달 금융자산에서 꺼내 써야 해요."
+                                     : "국민연금만으로 생활비를 감당할 수 있어요. 남는 금액은 자산에 더하지 않고 계산해요.";
+
+  drawChart(s);
+  renderCompare(p, s);
+  renderTables(s);
+}
+
+/* ── 차트 (SVG) ── */
+let chartPts = [];
+function nice(v){ if (v<=0) return 1; const e=Math.pow(10,Math.floor(Math.log10(v))); const m=v/e; return (m<=1?1:m<=2?2:m<=2.5?2.5:m<=5?5:10)*e; }
+function drawChart(s){
+  const W=760,H=320,L=56,R=16,T=18,B=34, w=W-L-R, h=H-T-B;
+  const pts = [];
+  s.pre.forEach(r=>pts.push({age:r.age, v:r.begin, seg:"pre"}));
+  s.rows.forEach(r=>pts.push({age:r.age, v:r.begin, seg: r.age < s.recv ? "gap" : "post", row:r}));
+  pts.push({age:END_AGE, v:s.endBal, seg:"post"});
+  const a0 = s.cur, a1 = END_AGE;
+  const maxV = nice(Math.max(...pts.map(p=>p.v), 1)*1.05);
+  const x = a => L + (a-a0)/(a1-a0)*w, y = v => T + h - v/maxV*h;
+  let g = "";
+  for (let i=0;i<=4;i++){
+    const v = maxV*i/4, yy = y(v);
+    g += `<line x1="${L}" x2="${W-R}" y1="${yy}" y2="${yy}" stroke="var(--line)" stroke-width="1"/>`;
+    g += `<text x="${L-8}" y="${yy+4}" text-anchor="end" font-size="11" fill="var(--muted)">${v===0?"0":(v/1e8).toFixed(v/1e8<10&&maxV/4/1e8%1?1:0)+"억"}</text>`;
+  }
+  const ticks = [...new Set([a0, s.start, s.recv, 80, 90, a1])].filter(a=>a>=a0&&a<=a1).sort((p,q)=>p-q);
+  ticks.forEach(a=>{ g += `<text x="${x(a)}" y="${H-12}" text-anchor="middle" font-size="11" fill="var(--muted)">${a}세</text>`; });
+  const marks = [[s.start,`은퇴 ${s.start}세`]];
+  if (s.recv > s.start) marks.push([s.recv,`연금 ${s.recv}세`]);
+  if (s.depleted) marks.push([s.depleted,`소진 ${s.depleted}세`]);
+  marks.forEach(([a,label],i)=>{
+    if (a<a0||a>a1) return;
+    g += `<line x1="${x(a)}" x2="${x(a)}" y1="${T}" y2="${T+h}" stroke="var(--muted)" stroke-dasharray="3 4" stroke-width="1"/>`;
+    g += `<text x="${x(a)+5}" y="${T+12+i*14}" font-size="11" fill="var(--muted)">${label}</text>`;
+  });
+  // 구간별 선
+  const path = seg => {
+    const idx = pts.map((p,i)=>p.seg===seg?i:-1).filter(i=>i>=0);
+    if (!idx.length) return "";
+    const first = Math.max(0, idx[0]-1), last = idx[idx.length-1];
+    return pts.slice(first, last+1).map((p,i)=>`${i?"L":"M"}${x(p.age).toFixed(1)},${y(Math.max(0,p.v)).toFixed(1)}`).join("");
+  };
+  const area = pts.filter(p=>p.seg!=="pre");
+  if (area.length){
+    g += `<path d="M${x(area[0].age)},${y(0)} ${area.map(p=>`L${x(p.age).toFixed(1)},${y(Math.max(0,p.v)).toFixed(1)}`).join(" ")} L${x(area[area.length-1].age)},${y(0)}Z" fill="var(--accent)" opacity=".08"/>`;
+  }
+  g += `<path d="${path("pre")}" fill="none" stroke="var(--pre)" stroke-width="2.4" stroke-dasharray="6 5"/>`;
+  g += `<path d="${path("gap")}" fill="none" stroke="var(--gap)" stroke-width="2.8"/>`;
+  g += `<path d="${path("post")}" fill="none" stroke="var(--accent)" stroke-width="2.8"/>`;
+  const sp = pts.find(p=>p.age===s.start);
+  if (sp) g += `<circle cx="${x(sp.age)}" cy="${y(sp.v)}" r="4" fill="var(--surface)" stroke="var(--ink)" stroke-width="2"/>`;
+  g += `<line id="hoverLine" x1="0" x2="0" y1="${T}" y2="${T+h}" stroke="var(--ink)" stroke-width="1" opacity="0"/>`;
+  g += `<circle id="hoverDot" r="4.5" fill="var(--ink)" opacity="0"/>`;
+  $("chart").innerHTML = g;
+  chartPts = pts.map(p=>({...p, cx:x(p.age), cy:y(Math.max(0,p.v))}));
+}
+(function bindChart(){
+  const svg = $("chart"), tip = $("tip");
+  const move = e => {
+    if (!chartPts.length) return;
+    const rect = svg.getBoundingClientRect();
+    const sx = (e.clientX - rect.left) * 760 / rect.width;
+    let best = chartPts[0]; for (const p of chartPts) if (Math.abs(p.cx-sx) < Math.abs(best.cx-sx)) best = p;
+    const hl = $("hoverLine"), hd = $("hoverDot");
+    hl.setAttribute("x1",best.cx); hl.setAttribute("x2",best.cx); hl.setAttribute("opacity",".25");
+    hd.setAttribute("cx",best.cx); hd.setAttribute("cy",best.cy); hd.setAttribute("opacity","1");
+    const segName = {pre:"은퇴 전", gap:"국민연금 전", post:"국민연금 수령 후"}[best.seg];
+    tip.innerHTML = `<b>${best.age}세</b> · ${segName}<br>잔액 ${koShort(best.v)}` + (best.row?`<br>필요 인출 ${koShort(best.row.need)}`:"");
+    tip.style.left = (best.cx/760*rect.width)+"px"; tip.style.top = (best.cy/320*rect.height)+"px"; tip.style.opacity = 1;
+  };
+  svg.addEventListener("mousemove", move);
+  svg.addEventListener("mouseleave", ()=>{ tip.style.opacity=0; const hl=$("hoverLine"),hd=$("hoverDot"); if(hl){hl.setAttribute("opacity","0");hd.setAttribute("opacity","0");} });
+})();
+
+/* ── 조건 비교 ── */
+function renderCompare(p, s){
+  const ages = [...new Set([s.normal-5, s.normal-3, s.normal, s.normal+3, s.normal+5, s.recv])].sort((a,b)=>a-b);
+  let h = `<thead><tr><th>은퇴 후 수익률 \\ 수령 나이</th>${ages.map(a=>`<th>${a}세${a===s.normal?" (정상)":a<s.normal?" 조기":" 연기"}</th>`).join("")}</tr></thead><tbody>`;
+  [-0.02, 0, 0.02].forEach(d=>{
+    const rp = p.retPost + d;
+    if (rp <= -0.5) return;
+    h += `<tr><td>${pctTxt(rp)}${d===0?" (입력)":""}</td>`;
+    ages.forEach(a=>{
+      const x = simulate({...p, retPost:rp, recv:a});
+      const me = d===0 && a===s.recv;
+      h += `<td class="n ${me?"me":""}">${x.depleted===null?`<span class="live">유지</span>`:`<span class="die">${x.depleted}세</span>`}</td>`;
+    });
+    h += `</tr>`;
+  });
+  $("cmp").innerHTML = h + `</tbody>`;
+}
+
+/* ── 연도별 표 ── */
+function renderTables(s){
+  if (s.pre.length){
+    $("preSec").hidden = false;
+    $("preTable").innerHTML = `<thead><tr><th>연도 · 나이</th><th>기초 금융자산</th><th>수익금</th><th>구간 말 잔액</th></tr></thead><tbody>` +
+      s.pre.map(r=>`<tr><td><b>${r.year} · ${r.age}세</b></td><td class="n">${ko(r.begin)}</td><td class="n">${ko(r.ret)}</td><td class="n">${ko(r.end)}</td></tr>`).join("") + `</tbody>`;
+  } else $("preSec").hidden = true;
+  const segLabel = {gap:"국민연금 전", post:"국민연금 수령 후", out:"자산 소진"};
+  $("postTable").innerHTML = `<thead><tr><th>연도 · 나이</th><th style="text-align:left">구간</th><th>기초 금융자산</th><th>연 생활비</th><th>국민연금</th><th>수익금</th><th>필요 인출</th><th>부족액</th><th>구간 말 잔액</th></tr></thead><tbody>` +
+    s.rows.map(r=>`<tr class="${r.seg==="out"?"dead":""}"><td><b>${r.year} · ${r.age}세</b></td><td style="text-align:left"><span class="seg ${r.seg}">${segLabel[r.seg]}</span></td>
+      <td class="n">${ko(r.begin)}</td><td class="n">${ko(r.living)}</td><td class="n">${r.pens?ko(r.pens):"0원"}</td><td class="n">${ko(r.ret)}</td>
+      <td class="n">${ko(r.need)}</td><td class="n ${r.unmet>0.5?"short":""}">${r.unmet>0.5?ko(r.unmet):"–"}</td><td class="n">${ko(r.end)}</td></tr>`).join("") + `</tbody>`;
+}
+
+/* ── 입력 처리 ── */
+document.querySelectorAll(".inputs input").forEach(el=>{
+  el.addEventListener("input", render);
+  if (el.classList.contains("money")) el.addEventListener("blur", ()=>{ el.value = Math.round(num(el.value)).toLocaleString("ko-KR"); });
+});
+$("reset").addEventListener("click", ()=>{ Object.entries(DEFAULTS).forEach(([k,v])=>$(k).value=v); render(); });
+render();
+</script>
+</body>
+</html>
