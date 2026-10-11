@@ -209,10 +209,6 @@
           <option value="0.495">49.5%</option>
         </select>
       </div>
-      <div class="field" id="ageField" style="display:none;">
-        <label for="age">연금 수령 시 나이 <span class="sub">(연금소득세율 결정)</span></label>
-        <input type="number" id="age" class="num-input" value="65" min="55" max="100">
-      </div>
     </div>
   </section>
 
@@ -282,7 +278,7 @@
   <section class="card card-pad">
     <div class="card-h">
       <h2>6 · 일반계좌 vs 연금계좌 비교</h2>
-      <span class="hint">같은 연 배당총액 기준</span>
+      <span class="hint">같은 연 배당총액 기준 · 연금계좌는 운용 중 기준(꺼낼 때 세금은 7번)</span>
     </div>
     <div class="vs" id="compare"></div>
   </section>
@@ -547,7 +543,7 @@ function renderBreakdown(){
       <div class="ln zero"><span class="lbl">금융소득종합과세 <small>금융소득에 합산되지 않아요</small></span><span class="amt">${won(0)}</span></div>
       <div class="ln zero"><span class="lbl">지역가입자 건보료 <small>부과되지 않아요</small></span><span class="amt">${won(0)}</span></div>
       <div class="ln total"><span class="lbl">계좌에 그대로 쌓이는 금액</span><span class="amt">${won(p.gross)}</span></div>
-      <p class="note" style="margin:12px 14px 0">세금은 연금계좌에서 <b>꺼낼 때</b> 연금소득세로 내요. 운용하는 동안에는 0원이에요. 꺼낼 때 세금은 아래 <a href="#mpSec" style="color:var(--accent)">7번</a>에서 확인하세요. (${state.age}세에 연금으로 받으면 연 ${won(p.tax)}, ${p.mode})</p>`;
+      <p class="note" style="margin:12px 14px 0">연금계좌에서 꺼낼 때 내는 연금소득세는 아래 <a href="#mpSec" style="color:var(--accent)">7번</a>에서 따로 계산해요.</p>`;
     document.getElementById('breakHint').textContent = `운용 단계 기준 · 꺼낼 때 세금은 7번`;
   }
 }
@@ -559,8 +555,7 @@ function renderFlags(){
   else fl.push(['ok','✓','금융소득종합과세 비대상', `과세대상 금융소득 합계 ${wonShort(g.totalFin)}원으로 2,000만원 이하, 원천징수로 분리과세 종결됩니다.`]);
   if (g.nhisIn) fl.push(['warn','!','건보료 산입', `과세대상 배당소득이 1,000만원을 넘어 지역가입자 건보료 산정에 포함됩니다. 이 배당 기준 연 약 <b>${wonShort(g.nhis)}원</b> 추가.`]);
   else fl.push(['ok','✓','건보료 미산입', `과세대상 배당소득 1,000만원 이하라 배당이 지역가입자 건보료에 반영되지 않습니다. 1,000만원을 1원이라도 넘으면 전액 산입되는 점에 주의하세요.`]);
-  if (p.over) fl.push(['warn','!','연금 분리과세 한도 초과', `연 ${wonShort(p.gross)}원은 사적연금 1,500만원 한도를 초과합니다. 16.5% 분리과세 또는 종합과세를 선택해야 하니, 수령액을 1,500만원 이하로 나눠 받으면 3.3~5.5% 저율이 유지됩니다.`]);
-  else fl.push(['info','i','연금 저율 구간', `연금으로 받을 경우 1,500만원 한도 내라 ${p.rateLabel} 기준 ${(p.rate*100).toFixed(1)}% 저율 연금소득세만 적용됩니다.`]);
+  fl.push(['info','i','연금계좌라면', `같은 배당을 연금계좌(IRP·연금저축)에서 받으면 운용하는 동안 배당소득세·종합과세·건보료가 모두 0원이에요. 꺼낼 때의 세금은 7번에서 확인하세요.`]);
 
   document.getElementById('flags').innerHTML = fl.map(f=>
     `<div class="flag ${f[0]}"><span class="ic">${f[1]}</span><div><b>${f[2]}</b> · ${f[3]}</div></div>`).join('');
@@ -580,12 +575,12 @@ function renderCompare(){
     </div>
     <div class="vs-mid">vs</div>
     <div class="vs-card ${state.acct==='pension'?'on':''}">
-      <div class="tag">연금계좌 (꺼내 쓸 때 기준)</div>
-      <div class="big">${wonShort(p.net)}원</div>
+      <div class="tag">연금계좌 (운용 중 · 계좌에 쌓이는 금액)</div>
+      <div class="big">${wonShort(p.gross)}원</div>
       <ul>
-        <li><span>꺼낼 때 연금소득세</span><span class="num">-${wonShort(p.tax)}원</span></li>
-        <li><span>건보료</span><span class="num">0원</span></li>
-        <li><span>운용 중 세금</span><span class="num">0원 (과세이연)</span></li>
+        <li><span>배당세</span><span class="num">0원 (과세이연)</span></li>
+        <li><span>종합과세 추가</span><span class="num">0원</span></li>
+        <li><span>지역 건보료</span><span class="num">0원</span></li>
       </ul>
     </div>`;
 }
@@ -666,16 +661,11 @@ document.getElementById('acctToggle').addEventListener('click', e=>{
   state.acct = a;
   document.querySelectorAll('#acctToggle button').forEach(b=>b.classList.toggle('on', b.dataset.acct===a));
   document.getElementById('marginalField').style.display = a==='general'?'':'none';
-  document.getElementById('ageField').style.display = a==='pension'?'':'none';
   renderAll();
 });
 document.getElementById('otherFin').addEventListener('input', e=>{ state.otherFin=Number(e.target.value)||0; renderAll(); });
 document.getElementById('marginal').addEventListener('change', e=>{ state.marginal=Number(e.target.value); renderAll(); });
-['age','age2'].forEach(id=>document.getElementById(id).addEventListener('input', e=>{
-  state.age=Number(e.target.value)||65;
-  ['age','age2'].forEach(o=>{ if(o!==id) document.getElementById(o).value = e.target.value; });
-  renderAll();
-}));
+document.getElementById('age2').addEventListener('input', e=>{ state.age=Number(e.target.value)||65; renderAll(); });
 document.getElementById('otherPension').addEventListener('input', e=>{ state.otherPension=Math.max(0,Number(e.target.value)||0); renderAll(); });
 
 /* init */
