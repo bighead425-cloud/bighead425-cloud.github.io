@@ -36,6 +36,21 @@
     -webkit-font-smoothing:antialiased;word-break:keep-all;overflow-wrap:break-word}
   .n{font-family:var(--font-num);font-variant-numeric:tabular-nums;letter-spacing:-.02em}
   .wrap{max-width:1160px;margin:0 auto;padding-inline:20px}
+
+  .sitebar{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;background:color-mix(in srgb,var(--bg) 88%,transparent);-webkit-backdrop-filter:saturate(1.4) blur(10px);backdrop-filter:saturate(1.4) blur(10px);border-bottom:1px solid var(--line)}
+  .sitebar-in{max-width:1180px;margin:0 auto;padding-inline:20px;height:56px;display:flex;align-items:center;justify-content:space-between;gap:16px}
+  .brand{display:flex;align-items:center;gap:9px;font-weight:700;font-size:16px;letter-spacing:-.02em;text-decoration:none;color:var(--ink);white-space:nowrap}
+  .brand i{width:26px;height:26px;border-radius:7px;background:var(--accent);display:grid;place-items:center;flex:none}
+  .brand i svg{width:16px;height:16px;color:var(--accent-ink)}
+  .sitenav{display:flex;gap:2px;overflow-x:auto;scrollbar-width:none}
+  .sitenav::-webkit-scrollbar{display:none}
+  .sitenav a{font-size:14px;font-weight:500;color:var(--muted);text-decoration:none;padding:7px 10px;border-radius:7px;white-space:nowrap}
+  .sitenav a:hover{color:var(--ink);background:var(--sunk)}
+  .crumb{display:inline-block;font-size:13px;font-weight:500;color:var(--muted);text-decoration:none;margin-bottom:14px}
+  .crumb:hover{color:var(--accent)}
+  .sitefoot{border-top:1px solid var(--line);margin-top:48px;padding-block:24px 40px;font-size:12.5px;color:var(--muted)}
+  .sitefoot div{max-width:1180px;margin:0 auto;padding-inline:20px;display:flex;flex-wrap:wrap;justify-content:space-between;gap:8px}
+  @media (max-width:600px){.sitenav a{padding:7px;font-size:13.5px}.brand{font-size:15px}}
   header.top{padding-block:36px 26px}
   .kicker{font-size:13px;font-weight:600;color:var(--accent);letter-spacing:.04em;margin:0 0 8px}
   h1{font-size:clamp(26px,4vw,36px);letter-spacing:-.03em;line-height:1.25;margin:0 0 8px;text-wrap:balance}
@@ -45,7 +60,7 @@
   .card{background:var(--surface);border:1px solid var(--line);border-radius:16px}
 
   /* 입력 */
-  .inputs{position:sticky;top:16px;padding:22px}
+  .inputs{position:sticky;top:72px;padding:22px}
   .inputs h2{font-size:17px;margin:0 0 2px}
   .inputs > p{margin:0 0 16px;font-size:13px;color:var(--muted)}
   .field{display:flex;flex-direction:column;gap:5px;padding-block:10px;border-top:1px solid var(--line)}
@@ -141,11 +156,15 @@
 </style>
 </head>
 <body>
-<a class="portal-home" href="../index.html" style="display:flex;align-items:center;padding:10px 20px;background:#16213A;color:#E8ECF4;font:600 13px/1.4 -apple-system,'Apple SD Gothic Neo',sans-serif;text-decoration:none">← 잘란부장 연금투자 홈</a>
+<header class="sitebar"><div class="sitebar-in">
+  <a class="brand" href="../index.html" aria-label="잘란부장 연금투자 홈으로"><i aria-hidden="true"><svg viewBox="0 0 16 16"><path d="M2 12l4-4 3 3 5-6" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg></i>잘란부장 연금투자</a>
+  <nav class="sitenav" aria-label="사이트 메뉴"><a href="../index.html#tools">시뮬레이터</a><a href="../index.html#updates">업데이트</a><a href="../index.html#about">이용 안내</a></nav>
+</div></header>
 
 <div class="wrap">
   <header class="top">
-    <p class="kicker">꺼내 쓰기 · 국민연금 공백기</p>
+    <a class="crumb" href="../index.html#tools">← 시뮬레이터 목록</a>
+      <p class="kicker">꺼내 쓰기 · 국민연금 공백기</p>
     <h1>국민연금 전 생활비 시뮬레이터</h1>
     <p>은퇴 후 국민연금이 나오기 전까지, 지금 모아 둔 금융자산으로 생활비를 감당할 수 있는지와 자산이 몇 살까지 버티는지 계산합니다.</p>
   </header>
@@ -288,6 +307,8 @@
     </main>
   </div>
 </div>
+
+<footer class="sitefoot"><div><span>잘란부장 연금투자 · 은퇴 자산의 세금을 직접 계산해 보는 시뮬레이터 모음</span><span>계산 결과는 참고용이며 투자 권유나 세무 자문이 아닙니다.</span></div></footer>
 
 <script>
 const YEAR = 2026, END_AGE = 100;
