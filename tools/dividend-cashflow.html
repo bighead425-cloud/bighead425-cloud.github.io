@@ -143,6 +143,12 @@
   .flag.info{background:var(--blue-soft);color:var(--ink)} .flag.info .ic{color:var(--blue)}
   .flag b{font-weight:700}
 
+  table.mp{min-width:560px}
+  table.mp td{padding:10px 6px;font-size:13.5px}
+  table.mp th.r,table.mp td.r{text-align:right}
+  table.mp tr.me td{background:var(--accent-soft)}
+  table.mp tr.me td:first-child{font-weight:700;color:var(--accent)}
+  td.neg{color:var(--bad)}
   footer.assume{margin-top:24px;font-size:12.5px;color:var(--muted);line-height:1.7}
   footer.assume b{color:var(--ink)}
   .pillrow{display:flex;flex-wrap:wrap;gap:7px;margin-top:8px}
@@ -281,6 +287,37 @@
     <div class="vs" id="compare"></div>
   </section>
 
+  <!-- MONTHLY PENSION -->
+  <section class="card card-pad" id="mpSec">
+    <div class="card-h">
+      <h2>7 · 이 배당을 월 연금으로 받으면</h2>
+      <span class="hint">연금계좌(IRP·연금저축)에 쌓인 배당을 매달 연금으로 꺼낼 때의 세금</span>
+    </div>
+    <div class="ctl-grid" style="margin-bottom:16px">
+      <div class="field">
+        <label for="age2">연금 수령 나이</label>
+        <input type="number" id="age2" class="num-input" value="65" min="55" max="100">
+        <span class="sub">55~69세 5.5% · 70~79세 4.4% · 80세 이상 3.3%</span>
+      </div>
+      <div class="field">
+        <label for="otherPension">이미 받는 다른 사적연금 <span class="sub">(연, 원)</span></label>
+        <input type="number" id="otherPension" class="num-input" value="0" min="0" step="1000000">
+        <span class="sub">연금저축·IRP 등에서 이미 받는 연금. 1,500만원 한도를 합산해서 판정해요. 국민연금은 넣지 마세요.</span>
+      </div>
+    </div>
+    <div class="sum-grid" id="mpKpis"></div>
+    <div class="flags" id="mpFlag" style="margin-top:14px"></div>
+    <div class="tbl-scroll" style="margin-top:16px">
+      <table class="mp">
+        <thead><tr><th>수령 나이</th><th class="r">세율</th><th class="r">월 연금 (세전)</th><th class="r">월 세금</th><th class="r">월 실수령</th><th class="r">연 실수령</th></tr></thead>
+        <tbody id="mpTable"></tbody>
+      </table>
+    </div>
+    <p class="note">· 연금계좌 안에서 받은 배당은 운용수익이라 꺼낼 때 전액 연금소득으로 과세돼요. 세액공제를 받지 않은 납입원금은 비과세지만 이 계산에는 넣지 않았어요.<br>
+      · 사적연금이 연 1,500만원(월 125만원)을 넘으면 그해 연금 전체가 16.5% 분리과세(또는 종합과세 선택) 대상이 돼요. 종신연금형은 나이와 관계없이 4.4%예요.<br>
+      · 사적연금 소득에는 건강보험료가 부과되지 않아요.</p>
+  </section>
+
   <footer class="assume">
     <b>계산 가정 (2026년 기준 · 단순화 모델)</b>
     <div class="pillrow">
@@ -330,7 +367,7 @@ let holdings = [
   { name:'미국 배당주',       foreign:true,  qty:50,   dps:1500,freq:'monthly', start:1, taxableRatio:100 },
 ];
 
-let state = { acct:'general', otherFin:0, marginal:0.264, age:65 };
+let state = { acct:'general', otherFin:0, marginal:0.264, age:65, otherPension:0 };
 
 const won = n => Math.round(n).toLocaleString('ko-KR') + '원';
 const wonShort = n => {
@@ -393,21 +430,25 @@ function calcGeneral(){
   return { gross, taxableGross, dom, for_, withhold, compExtra, comp, nhis, nhisIn, net, totalFin };
 }
 
+function lowRateFor(age){
+  if (age>=80) return {rate:CONFIG.pensionTax.age80plus, label:'80세 이상'};
+  if (age>=70) return {rate:CONFIG.pensionTax.age70to79, label:'70~79세'};
+  return {rate:CONFIG.pensionTax.under70, label:'70세 미만'};
+}
+// 배당을 연금으로 받을 때 이 배당 때문에 늘어나는 연금소득세 (다른 사적연금과 합산해 1,500만원 판정)
+function pensionTaxFor(gross, age, other){
+  const {rate, label} = lowRateFor(age);
+  const L = CONFIG.pensionSepLimit, O = Math.max(0, other||0);
+  const taxOf = x => x <= L ? x*rate : x*CONFIG.pensionSepOverRate;
+  const over = gross + O > L;
+  const tax = taxOf(gross + O) - taxOf(O);
+  return {rate, label, over, tax, net: gross - tax, eff: gross ? tax/gross : 0};
+}
 function calcPension(){
   const gross = grossTotal();
-  let rate, rateLabel;
-  if (state.age>=80){ rate=CONFIG.pensionTax.age80plus; rateLabel='80세↑'; }
-  else if (state.age>=70){ rate=CONFIG.pensionTax.age70to79; rateLabel='70~79세'; }
-  else { rate=CONFIG.pensionTax.under70; rateLabel='70세 미만'; }
-
-  let tax, mode, over=false;
-  if (gross <= CONFIG.pensionSepLimit){
-    tax = gross*rate; mode='저율 연금소득세 '+(rate*100).toFixed(1)+'%';
-  } else {
-    over=true;
-    tax = gross*CONFIG.pensionSepOverRate; mode='16.5% 분리과세 (또는 종합과세 선택)';
-  }
-  return { gross, tax, rate, rateLabel, mode, over, net: gross - tax, accumCash:0 };
+  const t = pensionTaxFor(gross, state.age, state.otherPension);
+  const mode = t.over ? '16.5% 분리과세 (또는 종합과세 선택)' : '저율 연금소득세 '+(t.rate*100).toFixed(1)+'%';
+  return { gross, tax:t.tax, rate:t.rate, rateLabel:t.label, mode, over:t.over, net:t.net, accumCash:0 };
 }
 
 /* ── 렌더 ───────────────────────── */
@@ -550,8 +591,48 @@ function renderCompare(){
     </div>`;
 }
 
+function renderMonthlyPension(){
+  const G = grossTotal(), g = calcGeneral();
+  const t = pensionTaxFor(G, state.age, state.otherPension);
+  const genMonthly = g.net/12, penMonthly = t.net/12, diff = penMonthly - genMonthly;
+  document.getElementById('mpKpis').innerHTML = `
+    <div class="stat"><div class="k">월 연금 (세전)</div>
+      <div class="v num">${won(G/12)}</div>
+      <div class="sub">연 배당총액 ${wonShort(G)}원을 12개월로 나눠 수령</div></div>
+    <div class="stat"><div class="k">월 연금소득세</div>
+      <div class="v num" style="color:var(--bad)">${won(t.tax/12)}</div>
+      <div class="sub">${t.over?(state.otherPension>0?'16.5% 분리과세 · 기존 연금이 16.5%로 오르며 늘어난 세금 포함':'16.5% 분리과세'):`${t.label} ${(t.rate*100).toFixed(1)}%`} · 실효 ${(t.eff*100).toFixed(1)}%</div></div>
+    <div class="stat accent"><div class="k">월 실수령 (세후)</div>
+      <div class="v num">${won(penMonthly)}</div>
+      <div class="sub ${diff>=0?'pos':'neg'}">일반계좌 월 ${won(genMonthly)}보다 ${won(Math.abs(diff))} ${diff>=0?'많음':'적음'}</div></div>`;
+
+  const L = CONFIG.pensionSepLimit, room = Math.max(0, L - state.otherPension);
+  let flag;
+  if (!t.over){
+    flag = ['ok','✓','저율 구간 유지', `다른 사적연금 포함 연 ${wonShort(G + state.otherPension)}원으로 1,500만원 이하라 ${t.label} ${(t.rate*100).toFixed(1)}% 저율로 끝나요. 월 ${wonShort(room/12)}원까지는 더 받아도 저율이에요.`];
+  } else {
+    const lowT = lowRateFor(state.age);
+    const partNet = room*(1-lowT.rate)/12;
+    flag = ['warn','!','1,500만원 한도 초과', `다른 사적연금 포함 연 ${wonShort(G + state.otherPension)}원이라 그해 연금 전체가 16.5% 분리과세(또는 종합과세) 대상이에요. `
+      + (room>0 ? `배당 중 <b>월 ${wonShort(room/12)}원</b>만 받으면 ${(lowT.rate*100).toFixed(1)}% 저율이 유지되고(월 실수령 ${wonShort(partNet)}원), 나머지는 계좌에서 계속 과세이연돼요.`
+                : `이미 다른 사적연금이 1,500만원을 채워서 추가로 받는 금액은 모두 16.5% 구간이에요.`)];
+  }
+  document.getElementById('mpFlag').innerHTML = `<div class="flag ${flag[0]}"><span class="ic">${flag[1]}</span><div><b>${flag[2]}</b> · ${flag[3]}</div></div>`;
+
+  const ages = [[65,'55~69세'],[75,'70~79세'],[85,'80세 이상']];
+  const cur = lowRateFor(state.age).label;
+  document.getElementById('mpTable').innerHTML = ages.map(([a,label])=>{
+    const x = pensionTaxFor(G, a, state.otherPension);
+    const me = label===cur || (cur==='70세 미만' && a===65);
+    return `<tr${me?' class="me"':''}><td>${label}${me?' (입력)':''}</td>
+      <td class="num r">${x.over?'16.5%':(x.rate*100).toFixed(1)+'%'}</td>
+      <td class="num r">${won(G/12)}</td><td class="num r neg">-${won(x.tax/12)}</td>
+      <td class="num r"><b>${won(x.net/12)}</b></td><td class="num r">${won(x.net)}</td></tr>`;
+  }).join('');
+}
+
 function renderAll(){
-  renderSummary(); renderMonths(); renderBreakdown(); renderFlags(); renderCompare();
+  renderSummary(); renderMonths(); renderBreakdown(); renderFlags(); renderCompare(); renderMonthlyPension();
 }
 
 /* ── 이벤트 ───────────────────────── */
@@ -591,7 +672,12 @@ document.getElementById('acctToggle').addEventListener('click', e=>{
 });
 document.getElementById('otherFin').addEventListener('input', e=>{ state.otherFin=Number(e.target.value)||0; renderAll(); });
 document.getElementById('marginal').addEventListener('change', e=>{ state.marginal=Number(e.target.value); renderAll(); });
-document.getElementById('age').addEventListener('input', e=>{ state.age=Number(e.target.value)||65; renderAll(); });
+['age','age2'].forEach(id=>document.getElementById(id).addEventListener('input', e=>{
+  state.age=Number(e.target.value)||65;
+  ['age','age2'].forEach(o=>{ if(o!==id) document.getElementById(o).value = e.target.value; });
+  renderAll();
+}));
+document.getElementById('otherPension').addEventListener('input', e=>{ state.otherPension=Math.max(0,Number(e.target.value)||0); renderAll(); });
 
 /* init */
 renderRows();
